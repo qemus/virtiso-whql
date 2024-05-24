@@ -19,15 +19,16 @@ jobs:
       contents: read
     steps:
       - 
-        name: Get latest tag
+        name: Get remote package data
         run: |
           #!/bin/bash
-          url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virtio/"
-          resp=$(curl -sS $url)
-          latest_tag=$(echo "$resp" | grep -o 'href="[^"]*' | tail -c +98 | sed 's/...$//')
+          
+          #https://rockylinux.pkgs.org/9/rockylinux-appstream-x86_64/virtio-win-1.9.38-0.el9_4.noarch.rpm.html
+          curl --show-error --fail --silent "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/" --output ./package_data.html
+          latest_tag=$(grep '<a href="virtio-win' ./package_data.html)
           [ -z "$latest_tag" ] && echo "Tag not found!" && exit 1
           [[ "$latest_tag" = v* ]] && latest_tag="${latest_tag:1}"
-          echo "Found tag: \"${latest_tag}\""
+          echo "Found tag: \"${latest_tag}\"" 
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
       - 
         name: Check if the tag exists locally
@@ -43,6 +44,8 @@ jobs:
             echo "exists=true" >> $GITHUB_ENV
             exit 0
           fi
+          echo "exists=true" >> $GITHUB_ENV
+          exit 0
           loc="${{ env.latest_tag }}"
           url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${loc}-1"
           echo "Checking if ${url} exists.."
@@ -61,6 +64,7 @@ jobs:
           strip="y"
           sudo apt install genisoimage libarchive-tools
           rm -f /tmp/latest.iso
+          wget "https://dl.rockylinux.org/pub/rocky/9/AppStream/x86_64/os/Packages/v/virtio-win-1.9.38-0.el9_4.noarch.rpm"
           wget "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${{ env.latest_tag }}-1/virtio-win-${{ env.latest_tag }}.iso" -O "/tmp/latest.iso" -q
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/
