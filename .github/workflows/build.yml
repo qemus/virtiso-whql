@@ -26,7 +26,7 @@ jobs:
           #https://rockylinux.pkgs.org/9/rockylinux-appstream-x86_64/virtio-win-1.9.38-0.el9_4.noarch.rpm.html
           curl --show-error --fail --silent "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/" --output ./package_data.html
           latest_tag=$(grep '<a href="virtio-win' ./package_data.html)
-          latest_tag=$(echo $latest_tag echo | cut -c 20- | cut -d- -f1)
+          latest_tag=$(echo $latest_tag echo | cut -c 20- | cut -d '-' -f1)
           
           [ -z "$latest_tag" ] && echo "Tag not found!" && exit 1
           [[ "$latest_tag" = v* ]] && latest_tag="${latest_tag:1}"
