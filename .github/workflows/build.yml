@@ -85,8 +85,9 @@ jobs:
           wget "https://github.com/qemus/virtiso/releases/download/v0.1.240/legacy.zip" -O "/tmp/legacy.zip" -q
           sudo unzip /tmp/legacy.zip -d /tmp/iso >/dev/null
           echo & echo
-          genisoimage -o /tmp/out.iso -r -iso-level 4 -input-charset iso8859-1 -V "virtio-win-${{ env.latest_tag }}" /tmp/iso
-          mv /tmp/out.iso /tmp/virtio-win-${{ env.latest_tag }}.iso
+          tar -cvzf /tmp/virtio-win-${{ env.latest_tag }}.tgz /tmp/iso
+          echo & echo          
+          genisoimage -o /tmp/virtio-win-${{ env.latest_tag }}.iso -r -iso-level 4 -input-charset iso8859-1 -V "virtio-win-${{ env.latest_tag }}" /tmp/iso
       -
         name: Checkout
         if: env.exists == 'false'
@@ -94,12 +95,19 @@ jobs:
         with:
           fetch-depth: 0
       -
-        name: Create artifact
+        name: Attach ISO file
         if: env.exists == 'false'
         uses: actions/upload-artifact@v4
         with:
           name: virtio-win-${{ env.latest_tag }}.iso
           path: /tmp/virtio-win-${{ env.latest_tag }}.iso
+      -
+        name: Attach TGZ file
+        if: env.exists == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: virtio-win-${{ env.latest_tag }}.tgz
+          path: /tmp/virtio-win-${{ env.latest_tag }}.tgz
       -
         name: Create a release
         if: env.exists == 'false'
