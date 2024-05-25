@@ -1,3 +1,4 @@
+
 <h1 align="center">Virtiso x64<br />
 <div align="center">
 <a href="https://github.com/qemus/virtiso"><img src="https://github.com/qemus/virtiso/raw/master/.github/logo.png" title="Logo" style="max-width:100%;" width="128" /></a>
@@ -12,7 +13,7 @@
 
 Virtiso is a slim image of the KVM/QEMU Virtio drivers for 64-bit Windows guests.
 
-The drivers are WHQL signed (unlike those in the [official ISO](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virtio/)) and reduced from 600 MB to just 27 MB in size.
+It minimizes the [official ISO](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virtio/) of 600 MB to just 27 MB in size.
 
 # Methods used
 
