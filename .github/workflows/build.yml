@@ -29,7 +29,6 @@ jobs:
           [ -z "$latest_tag" ] && echo "Tag not found!" && exit 1
           [[ "$latest_tag" = v* ]] && latest_tag="${latest_tag:1}"
           echo "Found tag: \"${latest_tag}\"" 
-          echo "latest_url=$latest_url" >> $GITHUB_ENV
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
       - 
         name: Check if the tag exists locally
@@ -53,7 +52,6 @@ jobs:
         run: |
           #!/bin/bash
           strip="y"
-          set -x
           sudo apt install genisoimage libarchive-tools
           rm -f /tmp/latest.rpm
           wget "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/${{ env.latest_url }}" -O "/tmp/latest.rpm" -q
@@ -71,7 +69,7 @@ jobs:
             sudo rm -f /tmp/iso/winfsp-*
             sudo rm -rf /tmp/iso/guest-agent
             sudo rm -rf /tmp/iso/spice-vdagent
-            sudo rm -rf /tmp/iso/qxl-wdmm-dod
+            sudo rm -rf /tmp/iso/qxl-wddm-dod
             sudo rm -f /tmp/iso/virtio-win-gt-x86.msi
             sudo rm -f /tmp/iso/virtio-win-guest-tools.exe
             sudo rm -f /tmp/iso/guest-agent/qemu-ga-i386.msi
