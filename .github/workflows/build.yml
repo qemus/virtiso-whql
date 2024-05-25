@@ -63,14 +63,11 @@ jobs:
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/
           cd /tmp/iso
-          ls /tmp/iso
-          ls /tmp/iso/NetKVM
-          ls /tmp/iso/NetKVM/xp
-          ls /tmp/iso/NetKVM/xp/x86
           echo & echo
           if [[ ${strip,,} == "y" ]]; then
             # Remove tools for different platforms
             sudo rm -rf /tmp/iso/i386
+            sudo rm -f /tmp/iso/winfsp-*
             sudo rm -rf /tmp/iso/guest-agent
             sudo rm -f /tmp/iso/virtio-win-gt-x86.msi
             sudo rm -f /tmp/iso/virtio-win-guest-tools.exe
@@ -79,8 +76,8 @@ jobs:
             sudo find /tmp/iso -name "*.pdb" -type f -delete
             sudo find /tmp/iso -name "*.PDB" -type f -delete
             # Exlcude XP x86 drivers
-            sudo mv /tmp/iso/NetKVM/xp/x86 /tmp/iso/NetKVM/xp/z86
-            sudo mv /tmp/iso/viostor/xp/x86 /tmp/iso/viostor/xp/z86
+            #sudo mv /tmp/iso/NetKVM/xp/x86 /tmp/iso/NetKVM/xp/z86
+           # sudo mv /tmp/iso/viostor/xp/x86 /tmp/iso/viostor/xp/z86
             # Remove binaries
             sudo find /tmp/iso -name "ARM64" -type d -exec  rm -rf {} +
             sudo find /tmp/iso -name "Arm64" -type d -exec rm -rf {} +
@@ -88,8 +85,8 @@ jobs:
             sudo find /tmp/iso -name "x86" -type d -exec rm -rf {} +
             sudo find /tmp/iso -name "X86" -type d -exec rm -rf {} +
             # Include some XP x86 drivers
-            sudo mv /tmp/iso/NetKVM/xp/z86 /tmp/iso/NetKVM/xp/x86
-            sudo mv /tmp/iso/viostor/xp/z86 /tmp/iso/viostor/xp/x86
+            #     sudo mv /tmp/iso/NetKVM/xp/z86 /tmp/iso/NetKVM/xp/x86
+            #    sudo mv /tmp/iso/viostor/xp/z86 /tmp/iso/viostor/xp/x86
             # Remove empty directories
             sudo find . -type d -empty -delete
           fi
