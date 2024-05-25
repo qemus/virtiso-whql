@@ -70,15 +70,14 @@ jobs:
             sudo rm -rf /tmp/iso/i386
             sudo rm -f /tmp/iso/winfsp-*
             sudo rm -rf /tmp/iso/guest-agent
+            sudo rm -rf /tmp/iso/spice-vdagent
+            sudo rm -rf /tmp/iso/qxl-wdmm-dod
             sudo rm -f /tmp/iso/virtio-win-gt-x86.msi
             sudo rm -f /tmp/iso/virtio-win-guest-tools.exe
             sudo rm -f /tmp/iso/guest-agent/qemu-ga-i386.msi
             # Remove debug symbols
             sudo find /tmp/iso -name "*.pdb" -type f -delete
             sudo find /tmp/iso -name "*.PDB" -type f -delete
-            # Exlcude XP x86 drivers
-            #sudo mv /tmp/iso/NetKVM/xp/x86 /tmp/iso/NetKVM/xp/z86
-           # sudo mv /tmp/iso/viostor/xp/x86 /tmp/iso/viostor/xp/z86
             # Remove binaries
             sudo find /tmp/iso -name "ARM64" -type d -exec  rm -rf {} +
             sudo find /tmp/iso -name "Arm64" -type d -exec rm -rf {} +
