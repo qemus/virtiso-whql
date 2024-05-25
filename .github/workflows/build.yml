@@ -57,8 +57,9 @@ jobs:
           rm -f /tmp/latest.rpm
           wget "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/${{ env.latest_url }}" -O "/tmp/latest.rpm" -q
           cd /tmp
-          rpm2cpio latest.rpm | cpio -idmv
+          rpm2cpio latest.rpm | cpio -idmv > /dev/null
           mv /tmp/usr/share/virtio-win/virtio-win.iso /tmp/latest.iso
+          chmod 777 /tmp/latest.iso
           rm -rf /tmp/usr
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/
