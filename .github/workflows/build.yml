@@ -29,7 +29,6 @@ jobs:
           [ -z "$latest_tag" ] && echo "Tag not found!" && exit 1
           [[ "$latest_tag" = v* ]] && latest_tag="${latest_tag:1}"
           echo "Found tag: \"${latest_tag}\"" 
-          echo "Found url: \"${latest_url}\"" 
           echo "latest_url=$latest_url" >> $GITHUB_ENV
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
       - 
@@ -56,7 +55,7 @@ jobs:
           strip="y"
           sudo apt install genisoimage libarchive-tools
           rm -f /tmp/latest.rpm
-          wget "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/${{ env.latest_url }}" -O "/tmp/latest.rpm" -q
+          wget "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/${{ env.latest_url }}" -O "/tmp/latest.rpm"
           exit 1
           rm -f /tmp/latest.iso
           rm -rf /tmp/iso && mkdir /tmp/iso
