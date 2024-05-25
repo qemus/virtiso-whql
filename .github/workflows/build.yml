@@ -63,6 +63,10 @@ jobs:
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/
           cd /tmp/iso
+          ls /tmp/iso
+          ls /tmp/iso/NetKVM
+          ls /tmp/iso/NetKVM/xp
+          ls /tmp/iso/NetKVM/xp/x86
           echo & echo
           if [[ ${strip,,} == "y" ]]; then
             # Remove tools for different platforms
