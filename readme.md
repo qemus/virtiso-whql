@@ -12,7 +12,7 @@
 
 Virtiso is a slim image of the KVM/QEMU Virtio drivers for 64-bit Windows guests.
 
-The drivers are WHQL signed (unlike the ones in the [official ISO](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virtio/)) and reduced from 600 MB to just 27 MB in size.
+The drivers are WHQL signed (unlike those in the [official ISO](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virtio/)) and reduced from 600 MB to just 27 MB in size.
 
 # Methods used
 
