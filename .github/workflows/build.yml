@@ -19,16 +19,15 @@ jobs:
       contents: read
     steps:
       - 
-        name: Get remote package data
+        name: Get latest version
         run: |
           #!/bin/bash
-          curl --show-error --fail --silent "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/" --output ./package_data.html
-          pkg=$(grep '<a href="virtio-win' ./package_data.html)
-          latest_url=$(echo "$pkg" | cut -c 10- | cut -d '"' -f1)
-          latest_tag=$(echo "$pkg" | cut -c 21- | cut -d '-' -f1)
+          url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virtio/"
+          resp=$(curl -sS $url)
+          latest_tag=$(echo "$resp" | grep -o 'href="[^"]*' | tail -c +98 | sed 's/...$//')
           [ -z "$latest_tag" ] && echo "Tag not found!" && exit 1
           [[ "$latest_tag" = v* ]] && latest_tag="${latest_tag:1}"
-          echo "Found tag: \"${latest_tag}\"" 
+          echo "Found tag: \"${latest_tag}\""
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
       - 
         name: Check if the tag exists locally
@@ -44,7 +43,15 @@ jobs:
             echo "exists=true" >> $GITHUB_ENV
             exit 0
           fi
-          echo "exists=false" >> $GITHUB_ENV
+          loc="${{ env.latest_tag }}"
+          url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${loc}-1"
+          echo "Checking if ${url} exists.."
+          resp=$(curl -I 2>/dev/null $url | head -1)
+          if echo $resp | grep 404 >/dev/null; then
+           echo "Download $url not found!" && exit 1
+          else
+           echo "exists=false" >> $GITHUB_ENV
+          fi
       -
         name: Build minified ISO
         if: env.exists == 'false'
@@ -53,48 +60,34 @@ jobs:
           #!/bin/bash
           strip="y"
           sudo apt install genisoimage libarchive-tools
-          rm -f /tmp/latest.rpm
-          wget "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/${{ env.latest_url }}" -O "/tmp/latest.rpm" -q
-          rm -rf /tmp/rpm && mkdir /tmp/rpm
-          cd /tmp/rpm
-          rpm2cpio /tmp/latest.rpm | cpio -idmv 2> /dev/null
-          cp -L /tmp/rpm/usr/share/virtio-win/virtio-win.iso /tmp/latest.iso
+          rm -f /tmp/latest.iso
+          wget "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${{ env.latest_tag }}-1/virtio-win-${{ env.latest_tag }}.iso" -O "/tmp/latest.iso" -q
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/
           cd /tmp/iso
           echo & echo
           if [[ ${strip,,} == "y" ]]; then
-            # Remove tools for different platforms
+            # Remove tools for other platforms
             sudo rm -rf /tmp/iso/i386
-            sudo rm -f /tmp/iso/winfsp-*
             sudo rm -rf /tmp/iso/guest-agent
-            sudo rm -rf /tmp/iso/spice-vdagent
-            sudo rm -rf /tmp/iso/qxl-wddm-dod
             sudo rm -f /tmp/iso/virtio-win-gt-x86.msi
             sudo rm -f /tmp/iso/virtio-win-guest-tools.exe
             sudo rm -f /tmp/iso/guest-agent/qemu-ga-i386.msi
             # Remove debug symbols
             sudo find /tmp/iso -name "*.pdb" -type f -delete
             sudo find /tmp/iso -name "*.PDB" -type f -delete
-            # Remove binaries
+            # Remove binaries for other platforms
             sudo find /tmp/iso -name "ARM64" -type d -exec  rm -rf {} +
             sudo find /tmp/iso -name "Arm64" -type d -exec rm -rf {} +
             sudo find /tmp/iso -name "arm64" -type d -exec rm -rf {} +
             sudo find /tmp/iso -name "x86" -type d -exec rm -rf {} +
             sudo find /tmp/iso -name "X86" -type d -exec rm -rf {} +
-            # Include some XP x86 drivers
-            #     sudo mv /tmp/iso/NetKVM/xp/z86 /tmp/iso/NetKVM/xp/x86
-            #    sudo mv /tmp/iso/viostor/xp/z86 /tmp/iso/viostor/xp/x86
             # Remove empty directories
             sudo find . -type d -empty -delete
           fi
           echo & echo
-          #wget "https://downloadmirror.intel.com/23295/eng/f6flpy-x86_11.2.0.1006.zip" -O "/tmp/satax86.zip" -q
-          #wget "https://downloadmirror.intel.com/23295/eng/f6flpy-x64_11.2.0.1006.zip" -O "/tmp/satax64.zip" -q
-          #mkdir -p /tmp/iso/sata/xp/x86
-          #mkdir -p /tmp/iso/sata/xp/amd64
-          #unzip /tmp/satax86.zip -d /tmp/iso/sata/xp/x86
-          #unzip /tmp/satax64.zip -d /tmp/iso/sata/xp/amd64
+          wget "https://github.com/qemus/virtiso/releases/download/v0.1.240/legacy.zip" -O "/tmp/legacy.zip" -q
+          unzip /tmp/legacy.zip -d /tmp/iso
           echo & echo
           genisoimage -o /tmp/out.iso -r -iso-level 4 -input-charset iso8859-1 -V "virtio-win-${{ env.latest_tag }}" /tmp/iso
           mv /tmp/out.iso /tmp/virtio-win-${{ env.latest_tag }}.iso
