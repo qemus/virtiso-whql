@@ -59,7 +59,7 @@ jobs:
           rm -rf /tmp/rpm && mkdir /tmp/rpm
           cd /tmp/rpm
           rpm2cpio /tmp/latest.rpm | cpio -idmv 2> /dev/null
-          cp -L /tmp/usr/share/virtio-win/virtio-win.iso /tmp/latest.iso
+          cp -L /tmp/rpm/usr/share/virtio-win/virtio-win.iso /tmp/latest.iso
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/
           cd /tmp/iso
