@@ -58,28 +58,10 @@ jobs:
         id: fedora
         run: |
           #!/bin/bash
-          strip="y"
           sudo apt install genisoimage libarchive-tools
           wget "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${{ env.latest_tag }}-1/virtio-win-${{ env.latest_tag }}.iso" -O "/tmp/latest.iso" -q
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/
-          cd /tmp/iso
-          echo & echo
-          if [[ ${strip,,} == "y" ]]; then
-            # Remove tools for other platforms
-            sudo rm -rf /tmp/iso/i386
-            sudo rm -rf /tmp/iso/guest-agent
-            sudo rm -f /tmp/iso/virtio-win-gt-x86.msi
-            sudo rm -f /tmp/iso/virtio-win-guest-tools.exe
-            sudo rm -f /tmp/iso/guest-agent/qemu-ga-i386.msi
-            # Remove debug symbols
-            sudo find /tmp/iso -iname "*.pdb" -type f -delete
-            # Remove binaries for other platforms
-            sudo find /tmp/iso -iname "x86" -type d -exec rm -rf {} +
-            sudo find /tmp/iso -iname "arm64" -type d -exec rm -rf {} +
-            # Remove empty directories
-            sudo find . -type d -empty -delete
-          fi
       -
         name: Add x86 drivers for XP/Vista/Win7
         if: env.exists == 'false'
@@ -90,7 +72,7 @@ jobs:
           sudo unzip /tmp/legacy.zip -d /tmp/iso >/dev/null
           echo & echo
       -
-        name: Process WHQL drivers for Win8
+        name: Process WHQL drivers for Win8/Win2012
         if: env.exists == 'false'
         id: rocky
         run: |
@@ -106,16 +88,31 @@ jobs:
           rm -rf /tmp/rocky && mkdir /tmp/rocky
           bsdtar -xf "/tmp/rocky.iso" -C /tmp/rocky/
           cd /tmp/rocky
-          cp -r amd64/w8 /tmp/iso/amd64
-          cp -r amd64/w8.1 /tmp/iso/amd64
-          cp -r amd64/2k12 /tmp/iso/amd64
-          cp -r amd64/2k12R2 /tmp/iso/amd64
+          sudo cp -r amd64/w8 /tmp/iso/amd64
+          sudo cp -r amd64/w8.1 /tmp/iso/amd64
+          sudo cp -r amd64/2k12 /tmp/iso/amd64
+          sudo cp -r amd64/2k12R2 /tmp/iso/amd64
       -
         name: Build minified ISO
         if: env.exists == 'false'
         id: build
         run: |
-          #!/bin/bash        
+          #!/bin/bash
+          cd /tmp/iso
+          # Remove tools for other platforms
+          sudo rm -rf /tmp/iso/i386
+          sudo rm -rf /tmp/iso/guest-agent
+          sudo rm -f /tmp/iso/virtio-win-gt-x86.msi
+          sudo rm -f /tmp/iso/virtio-win-guest-tools.exe
+          sudo rm -f /tmp/iso/guest-agent/qemu-ga-i386.msi
+          # Remove debug symbols
+          sudo find /tmp/iso -iname "*.pdb" -type f -delete
+          # Remove binaries for other platforms
+          sudo find /tmp/iso -iname "x86" -type d -exec rm -rf {} +
+          sudo find /tmp/iso -iname "arm64" -type d -exec rm -rf {} +
+          # Remove empty directories
+          sudo find . -type d -empty -delete
+          # Create ISO
           tar -C /tmp/iso -cvzf /tmp/virtio-win-${{ env.latest_tag }}.tar.gz * >/dev/null
           echo & echo
           XZ_OPT=-9 tar -C /tmp/iso -Jcvf /tmp/virtio-win-${{ env.latest_tag }}.tar.xz * >/dev/null         
