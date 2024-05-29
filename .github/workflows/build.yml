@@ -63,12 +63,16 @@ jobs:
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/
       -
-        name: Add drivers for Win8/Win2012
+        name: Add signed drivers for Win8/Win2012
         if: env.exists == 'false'
         id: signed
         run: |
           #!/bin/bash
-          function sl2 () {
+          function create_links () {
+            local source="$1"
+            local target="$1"
+            sudo cp -r "$source" "$target"
+            cd "$target"
             sudo cp -lr w8.1 w8
             sudo cp -lr w8.1 2k12
             sudo cp -lr w8.1 2k12R2
@@ -79,31 +83,26 @@ jobs:
           sudo find /tmp/iso -iname "w8.1" -type d -exec rm -rf {} +
           sudo find /tmp/iso -iname "2k12" -type d -exec rm -rf {} +
           sudo find /tmp/iso -iname "2k12R2" -type d -exec rm -rf {} +
-          #cd amd64 && sl
-          #cd ../Balloon && sl
-          #cd ../fwcfg && sl
-          #cd ../NetKVM && sl
-          #cd ../pvpanic && sl
-          #cd ../qemupciserial && sl
-          #cd ../qxldod && sl
-          #cd ../sriov && sl
-          #cd ../viofs && sl
-          #cd ../vioinput && sl
-          #cd ../vioscsi && sl
-          #cd ../vioserial && sl
-          #cd ../viostor && sl
           old_version="0.1.215"
           wget "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-$old_version-2/virtio-win-$old_version.iso" -O "/tmp/old.iso" -q
           rm -rf /tmp/old && mkdir /tmp/old
           bsdtar -xf "/tmp/old.iso" -C /tmp/old/
-          sudo cp -r /tmp/old/viogpudo/w8.1 /tmp/iso/viogpudo
-          cd /tmp/iso/viogpudo
-          sudo cp -lr w8.1 w8
-          sudo cp -lr w8.1 2k12
-          sudo cp -lr w8.1 2k12R2
-            
-          sudo cp -r /tmp/old/viorng/w8.1 /tmp/iso/viorng
-          cd ../viorng && sl2
+          create_links "/tmp/old/viogpudo/w8.1" "/tmp/iso/viogpudo"
+          curl --show-error --fail --silent "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/" --output /tmp/package.html
+          pkg=$(grep '<a href="virtio-win' /tmp/package.html)
+          latest_rpm=$(echo "$pkg" | cut -c 10- | cut -d '"' -f1)
+          wget "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/$latest_rpm" -O "/tmp/latest.rpm" -q
+          rm -rf /tmp/rpm && mkdir /tmp/rpm
+          cd /tmp/rpm
+          rpm2cpio /tmp/latest.rpm | cpio -idmv 2> /dev/null
+          cp -L /tmp/rpm/usr/share/virtio-win/virtio-win.iso /tmp/rocky.iso
+          rm -rf /tmp/rocky && mkdir /tmp/rocky
+          bsdtar -xf "/tmp/rocky.iso" -C /tmp/rocky/
+          create_links "/tmp/rocky/amd64/w8.1" "/tmp/iso/amd64"
+          create_links "/tmp/rocky/viorng/w8.1" "/tmp/iso/viorng"
+          create_links "/tmp/rocky/viostor/w8.1" "/tmp/iso/viostor"
+          create_links "/tmp/rocky/vioscsi/w8.1" "/tmp/iso/vioscsi"
+          create_links "/tmp/rocky/NetKVM/w8.1" "/tmp/iso/NetKVM"
       -
         name:  Strip unnecessary bloat
         if: env.exists == 'false'
