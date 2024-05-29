@@ -68,13 +68,6 @@ jobs:
         id: signed
         run: |
           #!/bin/bash
-          function sl () {
-            sudo cp -lr w10 w8
-            sudo cp -lr w10 w8.1
-            sudo cp -lr w10 2k12
-            sudo cp -lr w10 2k12R2
-            return 0
-          }
           function sl2 () {
             sudo cp -lr w8.1 w8
             sudo cp -lr w8.1 2k12
@@ -86,25 +79,29 @@ jobs:
           sudo find /tmp/iso -iname "w8.1" -type d -exec rm -rf {} +
           sudo find /tmp/iso -iname "2k12" -type d -exec rm -rf {} +
           sudo find /tmp/iso -iname "2k12R2" -type d -exec rm -rf {} +
-          cd amd64 && sl
-          cd ../Balloon && sl
-          cd ../fwcfg && sl
-          cd ../NetKVM && sl
-          cd ../pvpanic && sl
-          cd ../qemupciserial && sl
-          cd ../qxldod && sl
-          cd ../sriov && sl
-          cd ../viofs && sl
-          cd ../vioinput && sl
-          cd ../vioscsi && sl
-          cd ../vioserial && sl
-          cd ../viostor && sl
+          #cd amd64 && sl
+          #cd ../Balloon && sl
+          #cd ../fwcfg && sl
+          #cd ../NetKVM && sl
+          #cd ../pvpanic && sl
+          #cd ../qemupciserial && sl
+          #cd ../qxldod && sl
+          #cd ../sriov && sl
+          #cd ../viofs && sl
+          #cd ../vioinput && sl
+          #cd ../vioscsi && sl
+          #cd ../vioserial && sl
+          #cd ../viostor && sl
           old_version="0.1.215"
           wget "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-$old_version-2/virtio-win-$old_version.iso" -O "/tmp/old.iso" -q
           rm -rf /tmp/old && mkdir /tmp/old
           bsdtar -xf "/tmp/old.iso" -C /tmp/old/
           sudo cp -r /tmp/old/viogpudo/w8.1 /tmp/iso/viogpudo
-          cd ../viogpudo && sl2
+          cd /tmp/iso/viogpudo
+          sudo cp -lr w8.1 w8
+          sudo cp -lr w8.1 2k12
+          sudo cp -lr w8.1 2k12R2
+            
           sudo cp -r /tmp/old/viorng/w8.1 /tmp/iso/viorng
           cd ../viorng && sl2
       -
