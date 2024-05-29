@@ -89,8 +89,8 @@ jobs:
           sudo cp -r qxldod/2k12* /tmp/iso/qxldod
           #sudo cp -r sriov/w8* /tmp/iso/sriov
           #sudo cp -r sriov/2k12* /tmp/iso/sriov
-          sudo cp -r viofs/w8* /tmp/iso/viofs
-          sudo cp -r viofs/2k12* /tmp/iso/viofs
+          #sudo cp -r viofs/w8* /tmp/iso/viofs
+          #sudo cp -r viofs/2k12* /tmp/iso/viofs
           sudo cp -r viogpudo/w8* /tmp/iso/viogpudo
           sudo cp -r viogpudo/2k12* /tmp/iso/viogpudo
           sudo cp -r vioinput/w8* /tmp/iso/vioinput
