@@ -53,7 +53,7 @@ jobs:
            echo "exists=false" >> $GITHUB_ENV
           fi
       -
-        name: Process Fedora drivers
+        name: Download Fedora drivers
         if: env.exists == 'false'
         id: fedora
         run: |
@@ -71,11 +71,11 @@ jobs:
           function create_links () {
             local source="$1"
             local target="$2"
-            sudo cp -r "$source" "$target"
+            sudo cp -pr "$source" "$target"
             cd "$target"
-            sudo cp -lr w8.1 w8
-            sudo cp -lr w8.1 2k12
-            sudo cp -lr w8.1 2k12R2
+            sudo cp -lpr w8.1 w8
+            sudo cp -lpr w8.1 2k12
+            sudo cp -lpr w8.1 2k12R2
             return 0
           }
           cd /tmp/iso
