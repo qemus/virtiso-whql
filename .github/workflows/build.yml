@@ -79,7 +79,7 @@ jobs:
           ls -lh
           cd amd64/w8
           ls -lh
-          cd ../../Balloon/w2k12R2
+          cd ../../Balloon/2k12R2/amd64
           ls -lh
           jdkd
           sudo find /tmp/iso -iname "w8" -type d -exec rm -rf {} +
