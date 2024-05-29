@@ -69,10 +69,10 @@ jobs:
         run: |
           #!/bin/bash
           function sl () {
-            sudo ln -s ../w10 w8
-            sudo ln -s ../w10 w8.1
-            sudo ln -s ../w10 w2k12
-            sudo ln -s ../w10 w2k12R2
+            sudo ln -sr w10 w8
+            sudo ln -sr w10 w8.1
+            sudo ln -sr w10 w2k12
+            sudo ln -sr w10 w2k12R2
             return 0
           }
           cd /tmp/iso
