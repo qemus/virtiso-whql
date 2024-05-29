@@ -68,7 +68,7 @@ jobs:
         id: signed
         run: |
           #!/bin/bash
-          old_version="0.1.190"
+          old_version="0.1.208"
           wget "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-$old_version-1/virtio-win-$old_version.iso" -O "/tmp/old.iso" -q
           rm -rf /tmp/old && mkdir /tmp/old
           bsdtar -xf "/tmp/old.iso" -C /tmp/old/
