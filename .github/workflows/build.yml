@@ -105,10 +105,11 @@ jobs:
           cp -L /tmp/rpm/usr/share/virtio-win/virtio-win.iso /tmp/rocky.iso
           rm -rf /tmp/rocky && mkdir /tmp/rocky
           bsdtar -xf "/tmp/rocky.iso" -C /tmp/rocky/
-          cp /tmp/rocky/amd64/w8 /tmp/iso/amd64/w8
-          cp /tmp/rocky/amd64/w8.1 /tmp/iso/amd64/w8.1
-          cp /tmp/rocky/amd64/2k12 /tmp/iso/amd64/2k12
-          cp /tmp/rocky/amd64/2k12R2 /tmp/iso/amd64/2k12R2
+          cd /tmp/rocky
+          cp -r amd64/w8 /tmp/iso/amd64/w8
+          cp -r amd64/w8.1 /tmp/iso/amd64/w8.1
+          cp -r amd64/2k12 /tmp/iso/amd64/2k12
+          cp -r amd64/2k12R2 /tmp/iso/amd64/2k12R2
       -
         name: Build minified ISO
         if: env.exists == 'false'
