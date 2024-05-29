@@ -86,7 +86,6 @@ jobs:
           sudo cp -r NetKVM/w8* /tmp/iso/NetKVM
           sudo cp -r pvpanic/w8* /tmp/iso/pvpanic
           sudo cp -r qemupciserial/w8* /tmp/iso/qemupciserial
-          sudo cp -r qxldod/w8* /tmp/iso/qxldod
           sudo cp -r sriov/w8* /tmp/iso/sriov
           sudo cp -r viofs/w8* /tmp/iso/viofs
           sudo cp -r viogpudo/w8* /tmp/iso/viogpudo
