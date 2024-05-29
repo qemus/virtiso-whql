@@ -106,10 +106,10 @@ jobs:
           rm -rf /tmp/rocky && mkdir /tmp/rocky
           bsdtar -xf "/tmp/rocky.iso" -C /tmp/rocky/
           cd /tmp/rocky
-          cp -r amd64/w8 /tmp/iso/amd64/w8
-          cp -r amd64/w8.1 /tmp/iso/amd64/w8.1
-          cp -r amd64/2k12 /tmp/iso/amd64/2k12
-          cp -r amd64/2k12R2 /tmp/iso/amd64/2k12R2
+          cp -r amd64/w8 /tmp/iso/amd64
+          cp -r amd64/w8.1 /tmp/iso/amd64
+          cp -r amd64/2k12 /tmp/iso/amd64
+          cp -r amd64/2k12R2 /tmp/iso/amd64
       -
         name: Build minified ISO
         if: env.exists == 'false'
