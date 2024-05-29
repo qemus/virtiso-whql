@@ -10,7 +10,7 @@
   
 </div></h1>
 
-VirtISO is a slim image of the KVM/QEMU Virtio drivers for 64-bit Windows guests.
+VirtISO is a slim image of the KVM/QEMU VirtIO drivers for 64-bit Windows guests.
 
 It minimizes the [official ISO](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virtio/) from 700 MB to just 30 MB in size.
 
