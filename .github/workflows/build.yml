@@ -63,22 +63,16 @@ jobs:
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/
       -
-        name: Process WHQL drivers for Win8/Win2012
+        name: Add signed drivers for Win8/Win2012
         if: env.exists == 'false'
-        id: rocky
+        id: signed
         run: |
           #!/bin/bash
-          curl --show-error --fail --silent "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/" --output /tmp/rocky_package.html
-          pkg=$(grep '<a href="virtio-win' /tmp/rocky_package.html)
-          latest_rpm=$(echo "$pkg" | cut -c 10- | cut -d '"' -f1)
-          wget "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/$latest_rpm" -O "/tmp/latest.rpm" -q
-          rm -rf /tmp/rpm && mkdir /tmp/rpm
-          cd /tmp/rpm
-          rpm2cpio /tmp/latest.rpm | cpio -idmv 2> /dev/null
-          cp -L /tmp/rpm/usr/share/virtio-win/virtio-win.iso /tmp/rocky.iso
-          rm -rf /tmp/rocky && mkdir /tmp/rocky
-          bsdtar -xf "/tmp/rocky.iso" -C /tmp/rocky/
-          cd /tmp/rocky
+          old_version="0.1.248"
+          wget "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-$old_version-1/virtio-win-$old_version.iso" -O "/tmp/old.iso" -q
+          rm -rf /tmp/old && mkdir /tmp/old
+          bsdtar -xf "/tmp/old.iso" -C /tmp/old/
+          cd /tmp/old
           sudo cp -r amd64/w8* /tmp/iso/amd64
           sudo cp -r amd64/2k12* /tmp/iso/amd64
           sudo cp -r Balloon/w8* /tmp/iso/Balloon
@@ -86,6 +80,7 @@ jobs:
           sudo cp -r NetKVM/w8* /tmp/iso/NetKVM
           sudo cp -r pvpanic/w8* /tmp/iso/pvpanic
           sudo cp -r qemupciserial/w8* /tmp/iso/qemupciserial
+          sudo cp -r qxldod/w8* /tmp/iso/qxldod
           sudo cp -r sriov/w8* /tmp/iso/sriov
           sudo cp -r viofs/w8* /tmp/iso/viofs
           sudo cp -r viogpudo/w8* /tmp/iso/viogpudo
