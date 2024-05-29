@@ -96,7 +96,6 @@ jobs:
           cd ../sriov && sl
           cd ../viofs && sl
           cd ../vioinput && sl
-          cd ../viorng && sl
           cd ../vioscsi && sl
           cd ../vioserial && sl
           cd ../viostor && sl
@@ -106,6 +105,8 @@ jobs:
           bsdtar -xf "/tmp/old.iso" -C /tmp/old/
           sudo cp -r /tmp/old/viogpudo/w8 /tmp/iso/viogpudo
           cd ../viogpudo && sl2
+          sudo cp -r /tmp/old/viorng/w8 /tmp/iso/viorng
+          cd ../viorng && sl2
       -
         name:  Strip unnecessary bloat
         if: env.exists == 'false'
