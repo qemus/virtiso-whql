@@ -53,14 +53,13 @@ jobs:
            echo "exists=false" >> $GITHUB_ENV
           fi
       -
-        name: Build minified ISO
+        name: Process Fedora drivers
         if: env.exists == 'false'
-        id: version
+        id: fedora
         run: |
           #!/bin/bash
           strip="y"
           sudo apt install genisoimage libarchive-tools
-          rm -f /tmp/latest.iso
           wget "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${{ env.latest_tag }}-1/virtio-win-${{ env.latest_tag }}.iso" -O "/tmp/latest.iso" -q
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/
@@ -81,10 +80,41 @@ jobs:
             # Remove empty directories
             sudo find . -type d -empty -delete
           fi
-          echo & echo
+      -
+        name: Add x86 drivers for XP/Vista/Win7
+        if: env.exists == 'false'
+        id: legacy
+        run: |
+          #!/bin/bash
           wget "https://github.com/qemus/virtiso/releases/download/v0.1.240/legacy.zip" -O "/tmp/legacy.zip" -q
           sudo unzip /tmp/legacy.zip -d /tmp/iso >/dev/null
           echo & echo
+      -
+        name: Process WHQL drivers for Win8
+        if: env.exists == 'false'
+        id: rocky
+        run: |
+          #!/bin/bash
+          curl --show-error --fail --silent "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/" --output ./rocky_package.html
+          pkg=$(grep '<a href="virtio-win' ./rocky_package.html)
+          latest_rpm=$(echo "$pkg" | cut -c 10- | cut -d '"' -f1)
+          wget "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/$latest_rpm" -O "/tmp/latest.rpm" -q
+          rm -rf /tmp/rpm && mkdir /tmp/rpm
+          cd /tmp/rpm
+          rpm2cpio /tmp/latest.rpm | cpio -idmv 2> /dev/null
+          cp -L /tmp/rpm/usr/share/virtio-win/virtio-win.iso /tmp/rocky.iso
+          rm -rf /tmp/rocky && mkdir /tmp/rocky
+          bsdtar -xf "/tmp/rocky.iso" -C /tmp/rocky/
+          cp /tmp/rocky/amd64/w8 /tmp/iso/amd64/w8
+          cp /tmp/rocky/amd64/w8.1 /tmp/iso/amd64/w8.1
+          cp /tmp/rocky/amd64/2k12 /tmp/iso/amd64/2k12
+          cp /tmp/rocky/amd64/2k12R2 /tmp/iso/amd64/2k12R2
+      -
+        name: Build minified ISO
+        if: env.exists == 'false'
+        id: build
+        run: |
+          #!/bin/bash        
           tar -C /tmp/iso -cvzf /tmp/virtio-win-${{ env.latest_tag }}.tar.gz * >/dev/null
           echo & echo
           XZ_OPT=-9 tar -C /tmp/iso -Jcvf /tmp/virtio-win-${{ env.latest_tag }}.tar.xz * >/dev/null         
