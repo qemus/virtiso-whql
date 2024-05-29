@@ -6,13 +6,13 @@
   
   [![Build](https://github.com/qemus/virtiso/actions/workflows/build.yml/badge.svg)](https://github.com/qemus/virtiso/)
   [![Version](https://img.shields.io/github/v/tag/qemus/virtiso?label=version&sort=semver&color=066da5)](https://github.com/qemus/virtiso/releases)
-  [![Size](https://img.shields.io/badge/size-33.1_MB-steelblue?style=flat&color=066da5)](https://github.com/qemus/virtiso/releases)
+  [![Size](https://img.shields.io/badge/size-24.3_MB-steelblue?style=flat&color=066da5)](https://github.com/qemus/virtiso/releases)
   
 </div></h1>
 
 VirtISO is a slim image of the KVM/QEMU VirtIO drivers for 64-bit Windows guests.
 
-It minimizes the [official ISO](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virtio/) from 700 MB to just 33 MB in size.
+It minimizes the [official ISO](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virtio/) from 700 MB to just 24 MB in size.
 
 # Methods used
 
