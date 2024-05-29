@@ -16,7 +16,7 @@ It minimizes the [official ISO](https://fedorapeople.org/groups/virt/virtio-win/
 
 # Methods used
 
-  - Stripped ARM64/i386/x86 drivers
+  - Stripped all x86/i386/ARM drivers
   - Stripped all .PDB (debug symbol) files
   - Stripped Guest Agent and Guest Tools
 
