@@ -76,31 +76,25 @@ jobs:
             return 0
           }
           cd /tmp/iso
-          ls -lh
-          cd amd64/w8
-          ls -lh
-          cd ../../Balloon/2k12R2/amd64
-          ls -lh
-          jdkd
           sudo find /tmp/iso -iname "w8" -type d -exec rm -rf {} +
           sudo find /tmp/iso -iname "w8.1" -type d -exec rm -rf {} +
           sudo find /tmp/iso -iname "w2k12" -type d -exec rm -rf {} +
           sudo find /tmp/iso -iname "w2k12R2" -type d -exec rm -rf {} +
-          #cd amd64 && sl
-          #cd ../Balloon && sl
-          #cd ../fwcfg && sl
-          #cd ../NetKVM && sl
-          #cd ../pvpanic && sl
-          #cd ../qemupciserial && sl
-          #cd ../qxldod && sl
-          #cd ../sriov && sl
-          #cd ../viofs && sl
-          #cd ../viogpudo && sl
-          #cd ../vioinput && sl
-          #cd ../viorng && sl
-          #cd ../vioscsi && sl
-          #cd ../vioserial && sl
-          #cd ../viostor && sl
+          cd amd64 && sl
+          cd ../Balloon && sl
+          cd ../fwcfg && sl
+          cd ../NetKVM && sl
+          cd ../pvpanic && sl
+          cd ../qemupciserial && sl
+          cd ../qxldod && sl
+          cd ../sriov && sl
+          cd ../viofs && sl
+          cd ../viogpudo && sl
+          cd ../vioinput && sl
+          cd ../viorng && sl
+          cd ../vioscsi && sl
+          cd ../vioserial && sl
+          cd ../viostor && sl
           #old_version="0.1.215"
           #wget "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-$old_version-2/virtio-win-$old_version.iso" -O "/tmp/old.iso" -q
           #rm -rf /tmp/old && mkdir /tmp/old
