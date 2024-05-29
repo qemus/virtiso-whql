@@ -71,13 +71,14 @@ jobs:
           function sl () {
             sudo cp -lr w10 w8
             sudo cp -lr w10 w8.1
-            sudo cp -lr w10 w2k12
-            sudo cp -lr w10 w2k12R2
+            sudo cp -lr w10 2k12
+            sudo cp -lr w10 2k12R2
             return 0
           }
           function sl2 () {
             sudo cp -lr w8.1 w8
-            sudo cp -lr w2k12R2 w2k12
+            sudo cp -lr w8.1 2k12
+            sudo cp -lr w8.1 2k12R2
             return 0
           }
           cd /tmp/iso
@@ -103,10 +104,8 @@ jobs:
           rm -rf /tmp/old && mkdir /tmp/old
           bsdtar -xf "/tmp/old.iso" -C /tmp/old/
           sudo cp -r /tmp/old/viogpudo/w8.1 /tmp/iso/viogpudo
-          sudo cp -r /tmp/old/viogpudo/2k12R2 /tmp/iso/viogpudo
           cd ../viogpudo && sl2
           sudo cp -r /tmp/old/viorng/w8.1 /tmp/iso/viorng
-          sudo cp -r /tmp/old/viorng/2k12R2 /tmp/iso/viorng
           cd ../viorng && sl2
       -
         name:  Strip unnecessary bloat
