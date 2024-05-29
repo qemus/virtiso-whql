@@ -84,8 +84,8 @@ jobs:
           cd /tmp/iso
           sudo find /tmp/iso -iname "w8" -type d -exec rm -rf {} +
           sudo find /tmp/iso -iname "w8.1" -type d -exec rm -rf {} +
-          sudo find /tmp/iso -iname "w2k12" -type d -exec rm -rf {} +
-          sudo find /tmp/iso -iname "w2k12R2" -type d -exec rm -rf {} +
+          sudo find /tmp/iso -iname "2k12" -type d -exec rm -rf {} +
+          sudo find /tmp/iso -iname "2k12R2" -type d -exec rm -rf {} +
           cd amd64 && sl
           cd ../Balloon && sl
           cd ../fwcfg && sl
