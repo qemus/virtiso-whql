@@ -63,15 +63,6 @@ jobs:
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/
       -
-        name: Add x86 drivers for XP/Vista/Win7
-        if: env.exists == 'false'
-        id: legacy
-        run: |
-          #!/bin/bash
-          wget "https://github.com/qemus/virtiso/releases/download/v0.1.240/legacy.zip" -O "/tmp/legacy.zip" -q
-          sudo unzip /tmp/legacy.zip -d /tmp/iso >/dev/null
-          echo & echo
-      -
         name: Process WHQL drivers for Win8/Win2012
         if: env.exists == 'false'
         id: rocky
@@ -93,9 +84,9 @@ jobs:
           sudo cp -r amd64/2k12 /tmp/iso/amd64
           sudo cp -r amd64/2k12R2 /tmp/iso/amd64
       -
-        name: Build minified ISO
+        name:  Strip unnecessary bloat
         if: env.exists == 'false'
-        id: build
+        id: strip
         run: |
           #!/bin/bash
           cd /tmp/iso
@@ -112,7 +103,20 @@ jobs:
           sudo find /tmp/iso -iname "arm64" -type d -exec rm -rf {} +
           # Remove empty directories
           sudo find . -type d -empty -delete
-          # Create ISO
+      -
+        name: Add x86 drivers for XP/Vista/Win7
+        if: env.exists == 'false'
+        id: legacy
+        run: |
+          #!/bin/bash
+          wget "https://github.com/qemus/virtiso/releases/download/v0.1.240/legacy.zip" -O "/tmp/legacy.zip" -q
+          sudo unzip /tmp/legacy.zip -d /tmp/iso >/dev/null
+      -
+        name: Build minified ISO
+        if: env.exists == 'false'
+        id: build
+        run: |
+          #!/bin/bash
           tar -C /tmp/iso -cvzf /tmp/virtio-win-${{ env.latest_tag }}.tar.gz * >/dev/null
           echo & echo
           XZ_OPT=-9 tar -C /tmp/iso -Jcvf /tmp/virtio-win-${{ env.latest_tag }}.tar.xz * >/dev/null         
