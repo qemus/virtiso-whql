@@ -79,10 +79,22 @@ jobs:
           rm -rf /tmp/rocky && mkdir /tmp/rocky
           bsdtar -xf "/tmp/rocky.iso" -C /tmp/rocky/
           cd /tmp/rocky
-          sudo cp -r amd64/w8 /tmp/iso/amd64
-          sudo cp -r amd64/w8.1 /tmp/iso/amd64
-          sudo cp -r amd64/2k12 /tmp/iso/amd64
-          sudo cp -r amd64/2k12R2 /tmp/iso/amd64
+          sudo cp -r amd64/w8* /tmp/iso/amd64
+          sudo cp -r amd64/2k12* /tmp/iso/amd64
+          sudo cp -r Balloon/w8* /tmp/iso/Balloon
+          sudo cp -r fwcfg/w8* /tmp/iso/fwcfg
+          sudo cp -r NetKVM/w8* /tmp/iso/NetKVM
+          sudo cp -r pvpanic/w8* /tmp/iso/pvpanic
+          sudo cp -r qemupciserial/w8* /tmp/iso/qemupciserial
+          sudo cp -r qxldod/w8* /tmp/iso/qxldod
+          sudo cp -r sriov/w8* /tmp/iso/sriov
+          sudo cp -r viofs/w8* /tmp/iso/viofs
+          sudo cp -r viogpudo/w8* /tmp/iso/viogpudo
+          sudo cp -r vioinput/w8* /tmp/iso/vioinput
+          sudo cp -r viorng/w8* /tmp/iso/viorng
+          sudo cp -r vioscsi/w8* /tmp/iso/vioscsi
+          sudo cp -r vioserial/w8* /tmp/iso/vioserial
+          sudo cp -r viostor/w8* /tmp/iso/viostor
       -
         name:  Strip unnecessary bloat
         if: env.exists == 'false'
