@@ -77,8 +77,6 @@ jobs:
           sudo cp -r amd64/2k12* /tmp/iso/amd64
           sudo cp -r Balloon/w8* /tmp/iso/Balloon
           sudo cp -r Balloon/2k12* /tmp/iso/Balloon
-          sudo cp -r fwcfg/w8* /tmp/iso/fwcfg
-          sudo cp -r fwcfg/2k12* /tmp/iso/fwcfg
           sudo cp -r NetKVM/w8* /tmp/iso/NetKVM
           sudo cp -r NetKVM/2k12* /tmp/iso/NetKVM
           sudo cp -r pvpanic/w8* /tmp/iso/pvpanic
