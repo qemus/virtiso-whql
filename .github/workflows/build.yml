@@ -73,36 +73,36 @@ jobs:
           rm -rf /tmp/old && mkdir /tmp/old
           bsdtar -xf "/tmp/old.iso" -C /tmp/old/
           cd /tmp/old
-          sudo cp -P amd64/w8* /tmp/iso/amd64
-          sudo cp -P amd64/2k12* /tmp/iso/amd64
-          sudo cp -P Balloon/w8* /tmp/iso/Balloon
-          sudo cp -P Balloon/2k12* /tmp/iso/Balloon
-          sudo cp -P fwcfg/w8* /tmp/iso/fwcfg
-          sudo cp -P fwcfg/2k12* /tmp/iso/fwcfg
-          sudo cp -P NetKVM/w8* /tmp/iso/NetKVM
-          sudo cp -P NetKVM/2k12* /tmp/iso/NetKVM
-          sudo cp -P pvpanic/w8* /tmp/iso/pvpanic
-          sudo cp -P pvpanic/2k12* /tmp/iso/pvpanic
-          sudo cp -P qemupciserial/w8* /tmp/iso/qemupciserial
-          sudo cp -P qemupciserial/2k12* /tmp/iso/qemupciserial
-          sudo cp -P qxldod/w8* /tmp/iso/qxldod
-          sudo cp -P qxldod/2k12* /tmp/iso/qxldod
-          sudo cp -P sriov/w8* /tmp/iso/sriov
-          sudo cp -P sriov/2k12* /tmp/iso/sriov
-          sudo cp -P viofs/w8* /tmp/iso/viofs
-          sudo cp -P viofs/2k12* /tmp/iso/viofs
-          sudo cp -P viogpudo/w8* /tmp/iso/viogpudo
-          sudo cp -P viogpudo/2k12* /tmp/iso/viogpudo
-          sudo cp -P vioinput/w8* /tmp/iso/vioinput
-          sudo cp -P vioinput/2k12* /tmp/iso/vioinput
-          sudo cp -P viorng/w8* /tmp/iso/viorng
-          sudo cp -P viorng/2k12* /tmp/iso/viorng
-          sudo cp -P vioscsi/w8* /tmp/iso/vioscsi
-          sudo cp -P vioscsi/2k12* /tmp/iso/vioscsi
-          sudo cp -P vioserial/w8* /tmp/iso/vioserial
-          sudo cp -P vioserial/2k12* /tmp/iso/vioserial
-          sudo cp -P viostor/w8* /tmp/iso/viostor
-          sudo cp -P viostor/2k12* /tmp/iso/viostor
+          sudo cp -rP amd64/w8* /tmp/iso/amd64
+          sudo cp -rP amd64/2k12* /tmp/iso/amd64
+          sudo cp -rP Balloon/w8* /tmp/iso/Balloon
+          sudo cp -rP Balloon/2k12* /tmp/iso/Balloon
+          sudo cp -rP fwcfg/w8* /tmp/iso/fwcfg
+          sudo cp -rP fwcfg/2k12* /tmp/iso/fwcfg
+          sudo cp -rP NetKVM/w8* /tmp/iso/NetKVM
+          sudo cp -rP NetKVM/2k12* /tmp/iso/NetKVM
+          sudo cp -rP pvpanic/w8* /tmp/iso/pvpanic
+          sudo cp -rP pvpanic/2k12* /tmp/iso/pvpanic
+          sudo cp -rP qemupciserial/w8* /tmp/iso/qemupciserial
+          sudo cp -rP qemupciserial/2k12* /tmp/iso/qemupciserial
+          sudo cp -rP qxldod/w8* /tmp/iso/qxldod
+          sudo cp -rP qxldod/2k12* /tmp/iso/qxldod
+          sudo cp -rP sriov/w8* /tmp/iso/sriov
+          sudo cp -rP sriov/2k12* /tmp/iso/sriov
+          sudo cp -rP viofs/w8* /tmp/iso/viofs
+          sudo cp -rP viofs/2k12* /tmp/iso/viofs
+          sudo cp -rP viogpudo/w8* /tmp/iso/viogpudo
+          sudo cp -rP viogpudo/2k12* /tmp/iso/viogpudo
+          sudo cp -rP vioinput/w8* /tmp/iso/vioinput
+          sudo cp -rP vioinput/2k12* /tmp/iso/vioinput
+          sudo cp -rP viorng/w8* /tmp/iso/viorng
+          sudo cp -rP viorng/2k12* /tmp/iso/viorng
+          sudo cp -rP vioscsi/w8* /tmp/iso/vioscsi
+          sudo cp -rP vioscsi/2k12* /tmp/iso/vioscsi
+          sudo cp -rP vioserial/w8* /tmp/iso/vioserial
+          sudo cp -rP vioserial/2k12* /tmp/iso/vioserial
+          sudo cp -rP viostor/w8* /tmp/iso/viostor
+          sudo cp -rP viostor/2k12* /tmp/iso/viostor
       -
         name:  Strip unnecessary bloat
         if: env.exists == 'false'
