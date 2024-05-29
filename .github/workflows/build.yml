@@ -70,7 +70,7 @@ jobs:
           #!/bin/bash
           function create_links () {
             local source="$1"
-            local target="$1"
+            local target="$2"
             sudo cp -r "$source" "$target"
             cd "$target"
             sudo cp -lr w8.1 w8
