@@ -32,4 +32,4 @@ It minimizes the [official ISO](https://fedorapeople.org/groups/virt/virtio-win/
 
 # Disclaimer ⚖️
 
-  This project contains binaries provided by Red Hat, Inc. and/or its affiliates.
+  *This project contains binaries provided by Red Hat, Inc. and/or its affiliates.*
