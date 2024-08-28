@@ -24,7 +24,7 @@ jobs:
           #!/bin/bash
           url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virtio/"
           resp=$(curl -sS $url)
-          latest_tag=$(echo "$resp" | grep -o 'href="[^"]*' | tail -c +98 | sed 's/...$//')
+          latest_tag=$(echo "$resp" | grep -o 'href="[^"]*' | tail -c +98 | cut -f1 -d"/")
           [ -z "$latest_tag" ] && echo "Tag not found!" && exit 1
           [[ "$latest_tag" = v* ]] && latest_tag="${latest_tag:1}"
           echo "Found tag: \"${latest_tag}\""
@@ -43,8 +43,7 @@ jobs:
             echo "exists=true" >> $GITHUB_ENV
             exit 0
           fi
-          loc="${{ env.latest_tag }}"
-          url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${loc}-1"
+          url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${{ env.latest_tag }}"
           echo "Checking if ${url} exists.."
           resp=$(curl -I 2>/dev/null $url | head -1)
           if echo $resp | grep 404 >/dev/null; then
@@ -59,7 +58,7 @@ jobs:
         run: |
           #!/bin/bash
           sudo apt install genisoimage libarchive-tools
-          url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${{ env.latest_tag }}-1/virtio-win-${{ env.latest_tag }}.iso"
+          url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${{ env.latest_tag }}/virtio-win-${{ env.latest_tag }}.iso"
           wget "$url" -O "/tmp/latest.iso" -q
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/
