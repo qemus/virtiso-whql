@@ -93,7 +93,8 @@ jobs:
           curl --show-error --fail --silent "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/" --output /tmp/package.html
           pkg=$(grep '<a href="virtio-win' /tmp/package.html)
           latest_rpm=$(echo "$pkg" | cut -c 10- | cut -d '"' -f1)
-          wget "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/$latest_rpm" -O "/tmp/latest.rpm" -q
+          url="https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/$latest_rpm"
+          wget "$url" -O "/tmp/latest.rpm" -q
           rm -rf /tmp/rpm && mkdir /tmp/rpm
           cd /tmp/rpm
           rpm2cpio /tmp/latest.rpm | cpio -idmv 2> /dev/null
