@@ -59,7 +59,8 @@ jobs:
         run: |
           #!/bin/bash
           sudo apt install genisoimage libarchive-tools
-          wget "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${{ env.latest_tag }}-1/virtio-win-${{ env.latest_tag }}.iso" -O "/tmp/latest.iso" -q
+          url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${{ env.latest_tag }}-1/virtio-win-${{ env.latest_tag }}.iso"
+          wget "$url" -O "/tmp/latest.iso" -q
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/
       -
@@ -84,7 +85,8 @@ jobs:
           sudo find /tmp/iso -iname "2k12" -type d -exec rm -rf {} +
           sudo find /tmp/iso -iname "2k12R2" -type d -exec rm -rf {} +
           old_version="0.1.215"
-          wget "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-$old_version-2/virtio-win-$old_version.iso" -O "/tmp/old.iso" -q
+          url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-$old_version-2/virtio-win-$old_version.iso"
+          wget "$url" -O "/tmp/old.iso" -q
           rm -rf /tmp/old && mkdir /tmp/old
           bsdtar -xf "/tmp/old.iso" -C /tmp/old/
           create_links "/tmp/old/viogpudo/w8.1" "/tmp/iso/viogpudo"
@@ -129,7 +131,8 @@ jobs:
         id: legacy
         run: |
           #!/bin/bash
-          wget "https://github.com/qemus/virtiso/releases/download/v0.1.240/legacy.zip" -O "/tmp/legacy.zip" -q
+          url="https://github.com/qemus/virtiso/releases/download/v0.1.240/legacy.zip"
+          wget "$url" -O "/tmp/legacy.zip" -q
           sudo unzip /tmp/legacy.zip -d /tmp/iso >/dev/null
       -
         name: Build minified ISO
