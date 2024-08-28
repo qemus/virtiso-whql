@@ -58,9 +58,9 @@ jobs:
         run: |
           #!/bin/bash
           sudo apt install genisoimage libarchive-tools
-          iso=$(echo "${{ env.latest_tag }}" | cut -f1 -d"-")
-          iso="virtio-win-$iso.iso"
-          url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${{ env.latest_tag }}/$iso"
+          base=$(echo "${{ env.latest_tag }}" | cut -f1 -d"-")
+          echo "latest_base=$base" >> $GITHUB_ENV
+          url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${{ env.latest_tag }}/virtio-win-$base.iso"
           wget "$url" -O "/tmp/latest.iso" -q
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/
@@ -143,11 +143,11 @@ jobs:
         run: |
           #!/bin/bash
           cd /tmp/iso
-          tar -C /tmp/iso -cvzf /tmp/virtio-win-${{ env.latest_tag }}.tar.gz * >/dev/null
+          tar -C /tmp/iso -cvzf /tmp/virtio-win-${{ env.latest_base }}.tar.gz * >/dev/null
           echo & echo
-          XZ_OPT=-9 tar -C /tmp/iso -Jcvf /tmp/virtio-win-${{ env.latest_tag }}.tar.xz * >/dev/null         
+          XZ_OPT=-9 tar -C /tmp/iso -Jcvf /tmp/virtio-win-${{ env.latest_base }}.tar.xz * >/dev/null         
           echo & echo
-          genisoimage -o /tmp/virtio-win-${{ env.latest_tag }}.iso -r -iso-level 4 -input-charset iso8859-1 -V "virtio-win-${{ env.latest_tag }}" /tmp/iso
+          genisoimage -o /tmp/virtio-win-${{ env.latest_base }}.iso -r -iso-level 4 -input-charset iso8859-1 -V "virtio-win-${{ env.latest_base }}" /tmp/iso
       -
         name: Checkout
         if: env.exists == 'false'
@@ -160,14 +160,14 @@ jobs:
         uses: action-pack/github-release@v2
         with:
           tag: "v${{ env.latest_tag }}"
-          title: "v${{ env.latest_tag }}"
+          title: "v${{ env.latest_base }}"
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
       -
         name: Update release
         if: env.exists == 'false'
         uses: AButler/upload-release-assets@v3.0
         with:
-          files: '/tmp/virtio-win-${{ env.latest_tag }}.*'
+          files: '/tmp/virtio-win-${{ env.latest_base }}.*'
           release-tag: "v${{ env.latest_tag }}"
           repo-token: ${{ secrets.REPO_ACCESS_TOKEN }}
       -
