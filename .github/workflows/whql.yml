@@ -30,6 +30,8 @@ jobs:
           [ -z "$latest_tag" ] && echo "Tag not found!" && exit 1
           echo "Found tag: \"${latest_tag}\""
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
+          base=$(echo "${{ env.latest_tag }}" | cut -f1 -d"-")
+          echo "latest_base=$base" >> $GITHUB_ENV
       - 
         name: Check if the tag exists locally
         uses: action-pack/tag-exists@v1
@@ -45,14 +47,18 @@ jobs:
       -
         name: Download package
         if: env.exists == 'false'
-        id: fedora
+        id: rocky
+        run: |
+          #!/bin/bash
+          url="https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/virtio-win-${{ env.latest_tag }}.el9_4.noarch.rpm"
+          wget "$url" -O "/tmp/latest.rpm" -q
+      -
+        name: Process package
+        if: env.exists == 'false'
+        id: process
         run: |
           #!/bin/bash
           sudo apt install genisoimage libarchive-tools
-          base=$(echo "${{ env.latest_tag }}" | cut -f1 -d"-")
-          echo "latest_base=$base" >> $GITHUB_ENV
-          url="https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/virtio-win-${{ env.latest_tag }}.el9_4.noarch.rpm"
-          wget "$url" -O "/tmp/latest.rpm" -q
           rm -rf /tmp/rpm && mkdir /tmp/rpm
           cd /tmp/rpm
           rpm2cpio /tmp/latest.rpm | cpio -idmv 2> /dev/null
@@ -60,8 +66,8 @@ jobs:
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/rocky.iso" -C /tmp/iso/  
       -
-        name: Add signed drivers for Win8/Win2012
-        if: env.exists == 'XXXfalse'
+        name: Add GPU driver for Win8
+        if: env.exists == 'false'
         id: signed
         run: |
           #!/bin/bash
@@ -71,37 +77,15 @@ jobs:
             sudo cp -pr "$source" "$target"
             cd "$target"
             sudo cp -lpr w8.1 w8
-            sudo cp -lpr w8.1 2k12
-            sudo cp -lpr w8.1 2k12R2
             return 0
           }
           cd /tmp/iso
-          sudo find /tmp/iso -iname "w8" -type d -exec rm -rf {} +
-          sudo find /tmp/iso -iname "w8.1" -type d -exec rm -rf {} +
-          sudo find /tmp/iso -iname "2k12" -type d -exec rm -rf {} +
-          sudo find /tmp/iso -iname "2k12R2" -type d -exec rm -rf {} +
           old_version="0.1.215"
           url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-$old_version-2/virtio-win-$old_version.iso"
           wget "$url" -O "/tmp/old.iso" -q
           rm -rf /tmp/old && mkdir /tmp/old
           bsdtar -xf "/tmp/old.iso" -C /tmp/old/
           create_links "/tmp/old/viogpudo/w8.1" "/tmp/iso/viogpudo"
-          curl --show-error --fail --silent "https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/" --output /tmp/package.html
-          pkg=$(grep '<a href="virtio-win' /tmp/package.html)
-          latest_rpm=$(echo "$pkg" | cut -c 10- | cut -d '"' -f1)
-          url="https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/$latest_rpm"
-          wget "$url" -O "/tmp/latest.rpm" -q
-          rm -rf /tmp/rpm && mkdir /tmp/rpm
-          cd /tmp/rpm
-          rpm2cpio /tmp/latest.rpm | cpio -idmv 2> /dev/null
-          cp -L /tmp/rpm/usr/share/virtio-win/virtio-win.iso /tmp/rocky.iso
-          rm -rf /tmp/rocky && mkdir /tmp/rocky
-          bsdtar -xf "/tmp/rocky.iso" -C /tmp/rocky/
-          create_links "/tmp/rocky/amd64/w8.1" "/tmp/iso/amd64"
-          create_links "/tmp/rocky/viorng/w8.1" "/tmp/iso/viorng"
-          create_links "/tmp/rocky/viostor/w8.1" "/tmp/iso/viostor"
-          create_links "/tmp/rocky/vioscsi/w8.1" "/tmp/iso/vioscsi"
-          create_links "/tmp/rocky/NetKVM/w8.1" "/tmp/iso/NetKVM"
       -
         name:  Strip unnecessary bloat
         if: env.exists == 'false'
@@ -109,6 +93,10 @@ jobs:
         run: |
           #!/bin/bash
           cd /tmp/iso
+          # Remove bloat
+          sudo rm /tmp/iso/winfsp-*
+          sudo rm -rf /tmp/iso/spice-vdagent
+          sudo rm -rf /tmp/iso/qxl-wdmm-dod
           # Remove tools for other platforms
           sudo rm -rf /tmp/iso/i386
           sudo rm -rf /tmp/iso/guest-agent
@@ -124,7 +112,7 @@ jobs:
           sudo find . -type d -empty -delete
       -
         name: Add x86 drivers for XP/Vista/Win7
-        if: env.exists == 'XXfalse'
+        if: env.exists == 'false'
         id: legacy
         run: |
           #!/bin/bash
