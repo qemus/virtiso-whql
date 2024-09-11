@@ -25,10 +25,9 @@ jobs:
           url="https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/"
           resp=$(curl -sS "$url")
           pkg=$(echo "$resp" | grep '<a href="virtio-win')
-          latest_tag=$(echo "$pkg" | cut -c 10- | cut -d '"' -f1 | cut -c12-)
-          latest_tag="${latest_tag%.el*}"
+          pkg=$(echo "$pkg" | cut -c22- | cut -d '"' -f1)
+          latest_tag="${pkg%.el*}"
           [ -z "$latest_tag" ] && echo "Tag not found!" && exit 1
-          [[ "$latest_tag" = v* ]] && latest_tag="${latest_tag:1}"
           echo "Found tag: \"${latest_tag}\""
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
       - 
@@ -41,18 +40,8 @@ jobs:
         name: Finish when found
         run: |
           #!/bin/bash
-          if [[ "${{ steps.checkTag.outputs.exists }}" == "true" ]]; then
-            echo "exists=true" >> $GITHUB_ENV
-            exit 0
-          fi
-          url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${{ env.latest_tag }}"
-          echo "Checking if ${url} exists.."
-          resp=$(curl -I 2>/dev/null $url | head -1)
-          if echo $resp | grep 404 >/dev/null; then
-           echo "Download $url not found!" && exit 1
-          else
-           echo "exists=false" >> $GITHUB_ENV
-          fi
+          val="${{ steps.checkTag.outputs.exists }}"
+          echo "exists=${val}" >> $GITHUB_ENV
       -
         name: Download Fedora drivers
         if: env.exists == 'false'
