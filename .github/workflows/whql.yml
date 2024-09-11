@@ -111,7 +111,7 @@ jobs:
           # Remove empty directories
           sudo find . -type d -empty -delete
       -
-        name: Add x86 drivers for XP/Vista/Win7
+        name: Add drivers for XP/Vista/Win7
         if: env.exists == 'false'
         id: legacy
         run: |
