@@ -25,7 +25,7 @@ jobs:
           url="https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/"
           resp=$(curl -sS "$url")
           pkg=$(echo "$resp" | grep '<a href="virtio-win')
-          pkg=$(echo "$pkg" | cut -c22- | cut -d '"' -f1)
+          pkg=$(echo "$pkg" | cut -c21- | cut -d '"' -f1)
           latest_tag="${pkg%.el*}"
           [ -z "$latest_tag" ] && echo "Tag not found!" && exit 1
           echo "Found tag: \"${latest_tag}\""
@@ -43,7 +43,7 @@ jobs:
           val="${{ steps.checkTag.outputs.exists }}"
           echo "exists=${val}" >> $GITHUB_ENV
       -
-        name: Download Fedora drivers
+        name: Download package
         if: env.exists == 'false'
         id: fedora
         run: |
@@ -51,8 +51,8 @@ jobs:
           sudo apt install genisoimage libarchive-tools
           base=$(echo "${{ env.latest_tag }}" | cut -f1 -d"-")
           echo "latest_base=$base" >> $GITHUB_ENV
-          url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${{ env.latest_tag }}/virtio-win-$base.iso"
-          wget "$url" -O "/tmp/latest.iso" -q
+          url="https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/virtio-win-${{ env.latest_tag }}.el9_4.noarch.rpm"
+          wget "$url" -O "/tmp/latest.rpm" -q
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/
       -
