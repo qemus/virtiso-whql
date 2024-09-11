@@ -53,11 +53,15 @@ jobs:
           echo "latest_base=$base" >> $GITHUB_ENV
           url="https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/virtio-win-${{ env.latest_tag }}.el9_4.noarch.rpm"
           wget "$url" -O "/tmp/latest.rpm" -q
+          rm -rf /tmp/rpm && mkdir /tmp/rpm
+          cd /tmp/rpm
+          rpm2cpio /tmp/latest.rpm | cpio -idmv 2> /dev/null
+          cp -L /tmp/rpm/usr/share/virtio-win/virtio-win.iso /tmp/rocky.iso
           rm -rf /tmp/iso && mkdir /tmp/iso
-          bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/
+          bsdtar -xf "/tmp/rocky.iso" -C /tmp/iso/  
       -
         name: Add signed drivers for Win8/Win2012
-        if: env.exists == 'false'
+        if: env.exists == 'XXXfalse'
         id: signed
         run: |
           #!/bin/bash
@@ -120,7 +124,7 @@ jobs:
           sudo find . -type d -empty -delete
       -
         name: Add x86 drivers for XP/Vista/Win7
-        if: env.exists == 'false'
+        if: env.exists == 'XXfalse'
         id: legacy
         run: |
           #!/bin/bash
