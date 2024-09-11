@@ -25,7 +25,7 @@ jobs:
           url="https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/"
           resp=$(curl -sS "$url")
           pkg=$(echo "$resp" | grep '<a href="virtio-win')
-          latest_tag=$(echo "$pkg" | cut -c 10- | cut -d '"' -f1 | cut -c11-)
+          latest_tag=$(echo "$pkg" | cut -c 10- | cut -d '"' -f1 | cut -c12- | cut -d '-' -f1)
           [ -z "$latest_tag" ] && echo "Tag not found!" && exit 1
           [[ "$latest_tag" = v* ]] && latest_tag="${latest_tag:1}"
           echo "Found tag: \"${latest_tag}\""
