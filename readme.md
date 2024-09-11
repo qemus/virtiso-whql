@@ -10,19 +10,19 @@
   
 </div></h1>
 
-VirtISO is a slim image of the KVM/QEMU VirtIO drivers for 64-bit Windows guests.
+VirtISO is a slim image of the KVM/QEMU VirtIO drivers for Windows guests.
 
 It minimizes the [official ISO](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virtio/) from 700 MB to just 25 MB in size.
 
 # Features ✨
 
-  - Stripped all x86/i386/ARM drivers
+  - Stripped all i386/ARM64 drivers
   - Stripped all .PDB (debug symbol) files
   - Stripped Guest Agent and Guest Tools
 
 # Usage 🚀
   
-  It contains every AMD64 driver the official image has, and even the .MSI installer, so there is zero loss of functionality.
+  It contains every driver the official image has, and even the .MSI installer, so there is zero loss of functionality.
 
 > [!TIP]
 > See also [VirtISO x86](https://github.com/qemus/virtiso-x86/) if you need x86 drivers and [VirtISO ARM](https://github.com/qemus/virtiso-arm/) for ARM64 drivers.
