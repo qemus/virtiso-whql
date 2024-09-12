@@ -66,27 +66,6 @@ jobs:
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/rocky.iso" -C /tmp/iso/  
       -
-        name: Add GPU driver for Win8
-        if: env.exists == 'false'
-        id: signed
-        run: |
-          #!/bin/bash
-          function create_links () {
-            local source="$1"
-            local target="$2"
-            sudo cp -pr "$source" "$target"
-            cd "$target"
-            sudo cp -lpr w8.1 w8
-            return 0
-          }
-          cd /tmp/iso
-          old_version="0.1.215"
-          url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-$old_version-2/virtio-win-$old_version.iso"
-          wget "$url" -O "/tmp/old.iso" -q
-          rm -rf /tmp/old && mkdir /tmp/old
-          bsdtar -xf "/tmp/old.iso" -C /tmp/old/
-          create_links "/tmp/old/viogpudo/w8.1" "/tmp/iso/viogpudo"
-      -
         name:  Strip unnecessary bloat
         if: env.exists == 'false'
         id: strip
@@ -111,12 +90,12 @@ jobs:
           # Remove empty directories
           sudo find . -type d -empty -delete
       -
-        name: Add drivers for XP/Vista/Win7
+        name: Add some legacy drivers 
         if: env.exists == 'false'
         id: legacy
         run: |
           #!/bin/bash
-          url="https://github.com/qemus/virtiso/releases/download/v0.1.240/legacy.zip"
+          url="https://github.com/qemus/virtiso-whql/releases/download/v1.9.39/legacy.zip"
           wget "$url" -O "/tmp/legacy.zip" -q
           sudo unzip /tmp/legacy.zip -d /tmp/iso >/dev/null
       -
