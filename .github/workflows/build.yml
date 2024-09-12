@@ -99,6 +99,20 @@ jobs:
           wget "$url" -O "/tmp/legacy.zip" -q
           sudo unzip /tmp/legacy.zip -d /tmp/iso >/dev/null
       -
+        name: Create symbolic links
+        if: env.exists == 'false'
+        id: symlinks
+        run: |
+          #!/bin/bash
+          ln -s /tmp/iso/viogpudo/w8.1 /tmp/iso/viogpudo/w8
+          ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/xp/amd64/WdfCoInstaller01009.dll
+          ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/2k3/amd64/WdfCoInstaller01009.dll
+          ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/2k8/amd64/WdfCoInstaller01009.dll         
+          ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/pvpanic/2k8/amd64/WdfCoInstaller01009.dll
+          ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/2k8/amd64/WdfCoInstaller01009.dll
+          ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/2k8/amd64/WdfCoInstaller01009.dll
+          ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/2k8/amd64/WdfCoInstaller01009.dll          
+      -      
         name: Build minified ISO
         if: env.exists == 'false'
         id: build
