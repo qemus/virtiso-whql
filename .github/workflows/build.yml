@@ -112,7 +112,7 @@ jobs:
           sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/xp/amd64/WdfCoInstaller01009.dll
           sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/2k3/amd64/WdfCoInstaller01009.dll
           sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/2k8/amd64/WdfCoInstaller01009.dll
-          rdfind -makehardlinks true /tmp/iso/
+          sudo rdfind -makehardlinks true /tmp/iso/
       -      
         name: Build minified ISO
         if: env.exists == 'false'
