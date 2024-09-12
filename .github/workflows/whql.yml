@@ -30,7 +30,7 @@ jobs:
           [ -z "$latest_tag" ] && echo "Tag not found!" && exit 1
           echo "Found tag: \"${latest_tag}\""
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
-          base=$(echo "${{ env.latest_tag }}" | cut -f1 -d"-")
+          base=$(echo "$latest_tag" | cut -f1 -d"-")
           echo "latest_base=$base" >> $GITHUB_ENV
       - 
         name: Check if the tag exists locally
@@ -96,7 +96,7 @@ jobs:
           # Remove bloat
           sudo rm /tmp/iso/winfsp-*
           sudo rm -rf /tmp/iso/spice-vdagent
-          sudo rm -rf /tmp/iso/qxl-wdmm-dod
+          sudo rm -rf /tmp/iso/qxl-wddm-dod
           # Remove tools for other platforms
           sudo rm -rf /tmp/iso/i386
           sudo rm -rf /tmp/iso/guest-agent
