@@ -101,7 +101,6 @@ jobs:
           sudo rm -rf /tmp/iso/i386
           sudo rm -rf /tmp/iso/guest-agent
           sudo rm -f /tmp/iso/virtio-win-gt-x86.msi
-          sudo rm -f /tmp/iso/virtio-win-gt-x64.msi          
           sudo rm -f /tmp/iso/virtio-win-guest-tools.exe
           sudo rm -f /tmp/iso/guest-agent/qemu-ga-i386.msi
           # Remove debug symbols
@@ -127,11 +126,12 @@ jobs:
         run: |
           #!/bin/bash
           cd /tmp/iso
+          genisoimage -o /tmp/virtio-win-${{ env.latest_base }}.iso -r -iso-level 4 -input-charset iso8859-1 -V "virtio-win-${{ env.latest_base }}" /tmp/iso
+          sudo rm /tmp/iso/*.msi
+          echo & echo
           tar -C /tmp/iso -cvzf /tmp/virtio-win-${{ env.latest_base }}.tar.gz * >/dev/null
           echo & echo
           XZ_OPT=-9 tar -C /tmp/iso -Jcvf /tmp/virtio-win-${{ env.latest_base }}.tar.xz * >/dev/null         
-          echo & echo
-          genisoimage -o /tmp/virtio-win-${{ env.latest_base }}.iso -r -iso-level 4 -input-charset iso8859-1 -V "virtio-win-${{ env.latest_base }}" /tmp/iso
       -
         name: Checkout
         if: env.exists == 'false'
