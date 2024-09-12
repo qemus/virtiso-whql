@@ -26,9 +26,10 @@ jobs:
           resp=$(curl -sS $url)
           latest_tag=$(echo "$resp" | grep -o 'href="[^"]*' | tail -c +98 | cut -f1 -d"/")
           [ -z "$latest_tag" ] && echo "Tag not found!" && exit 1
-          [[ "$latest_tag" = v* ]] && latest_tag="${latest_tag:1}"
           echo "Found tag: \"${latest_tag}\""
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
+          base=$(echo "$latest_tag" | cut -f1 -d"-")
+          echo "latest_base=$base" >> $GITHUB_ENV
       - 
         name: Check if the tag exists locally
         uses: action-pack/tag-exists@v1
@@ -58,8 +59,6 @@ jobs:
         run: |
           #!/bin/bash
           sudo apt install genisoimage libarchive-tools
-          base=$(echo "${{ env.latest_tag }}" | cut -f1 -d"-")
-          echo "latest_base=$base" >> $GITHUB_ENV
           url="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-${{ env.latest_tag }}/virtio-win-$base.iso"
           wget "$url" -O "/tmp/latest.iso" -q
           rm -rf /tmp/iso && mkdir /tmp/iso
@@ -128,7 +127,7 @@ jobs:
           # Remove empty directories
           sudo find . -type d -empty -delete
       -
-        name: Add x86 drivers for XP/Vista/Win7
+        name: Add some x86 drivers for XP/Vista/Win7
         if: env.exists == 'false'
         id: legacy
         run: |
@@ -143,11 +142,13 @@ jobs:
         run: |
           #!/bin/bash
           cd /tmp/iso
+          genisoimage -o /tmp/virtio-win-${{ env.latest_base }}.iso -r -iso-level 4 -input-charset iso8859-1 -V "virtio-win-${{ env.latest_base }}" /tmp/iso
+          sudo rm /tmp/iso/*.msi
+          sudo rm /tmp/iso/*.exe          
+          echo & echo
           tar -C /tmp/iso -cvzf /tmp/virtio-win-${{ env.latest_base }}.tar.gz * >/dev/null
           echo & echo
           XZ_OPT=-9 tar -C /tmp/iso -Jcvf /tmp/virtio-win-${{ env.latest_base }}.tar.xz * >/dev/null         
-          echo & echo
-          genisoimage -o /tmp/virtio-win-${{ env.latest_base }}.iso -r -iso-level 4 -input-charset iso8859-1 -V "virtio-win-${{ env.latest_base }}" /tmp/iso
       -
         name: Checkout
         if: env.exists == 'false'
