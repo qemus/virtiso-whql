@@ -104,12 +104,12 @@ jobs:
         id: symlinks
         run: |
           #!/bin/bash
-          sudo mkdir -p /tmp/iso/viogpudo/w8
-          sudo ln -s /tmp/iso/viogpudo/w8.1/vgpusrv.exe /tmp/iso/viogpudo/w8/vgpusrv.exe
-          sudo ln -s /tmp/iso/viogpudo/w8.1/viogpuap.exe /tmp/iso/viogpudo/w8/viogpuap.exe
-          sudo ln -s /tmp/iso/viogpudo/w8.1/viogpudo.cat /tmp/iso/viogpudo/w8/viogpudo.cat
-          sudo ln -s /tmp/iso/viogpudo/w8.1/viogpudo.sys /tmp/iso/viogpudo/w8/viogpudo.sys
-          sudo ln -s /tmp/iso/viogpudo/w8.1/viogpudo.inf /tmp/iso/viogpudo/w8/viogpudo.inf
+          sudo mkdir -p /tmp/iso/viogpudo/w8/amd64/
+          sudo ln -s /tmp/iso/viogpudo/w8.1/amd64/vgpusrv.exe /tmp/iso/viogpudo/w8/amd64/vgpusrv.exe
+          sudo ln -s /tmp/iso/viogpudo/w8.1/amd64/viogpuap.exe /tmp/iso/viogpudo/w8/amd64/viogpuap.exe
+          sudo ln -s /tmp/iso/viogpudo/w8.1/amd64/viogpudo.cat /tmp/iso/viogpudo/w8/amd64/viogpudo.cat
+          sudo ln -s /tmp/iso/viogpudo/w8.1/amd64/viogpudo.sys /tmp/iso/viogpudo/w8/amd64/viogpudo.sys
+          sudo ln -s /tmp/iso/viogpudo/w8.1/amd64/viogpudo.inf /tmp/iso/viogpudo/w8/amd64/viogpudo.inf
           sudo ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/xp/amd64/WdfCoInstaller01009.dll
           sudo ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/2k3/amd64/WdfCoInstaller01009.dll
           sudo ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/2k8/amd64/WdfCoInstaller01009.dll         
