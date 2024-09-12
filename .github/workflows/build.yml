@@ -109,8 +109,8 @@ jobs:
           sudo ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/2k3/amd64/WdfCoInstaller01009.dll
           sudo ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/2k8/amd64/WdfCoInstaller01009.dll         
           sudo ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/pvpanic/2k8/amd64/WdfCoInstaller01009.dll
-          sudo ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/2k8/amd64/WdfCoInstaller01009.dll
-          sudo ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/2k8/amd64/WdfCoInstaller01009.dll
+          sudo ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/xp/amd64/WdfCoInstaller01009.dll
+          sudo ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/2k3/amd64/WdfCoInstaller01009.dll
           sudo ln -s /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/2k8/amd64/WdfCoInstaller01009.dll          
       -      
         name: Build minified ISO
