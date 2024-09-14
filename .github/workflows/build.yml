@@ -108,7 +108,6 @@ jobs:
           # Temporary Win2025 folders
           sudo cp -lpr /tmp/iso/amd64/w11 /tmp/iso/amd64/2k25
           sudo cp -lpr /tmp/iso/Balloon/w11 /tmp/iso/Balloon/2k25
-          sudo cp -lpr /tmp/iso/fwconfig/w11 /tmp/iso/fwconfig/2k25
           sudo cp -lpr /tmp/iso/NetKVM/w11 /tmp/iso/NetKVM/2k25
           sudo cp -lpr /tmp/iso/pvpanic/w11 /tmp/iso/pvpanic/2k25
           sudo cp -lpr /tmp/iso/qemufwconfig/w11 /tmp/iso/qemufwconfig/2k25
