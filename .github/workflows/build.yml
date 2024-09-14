@@ -71,7 +71,7 @@ jobs:
         id: legacy
         run: |
           #!/bin/bash
-          url="https://github.com/qemus/virtiso-whql/releases/download/v1.9.39/legacy.zip"
+          url="https://github.com/qemus/virtiso-whql/releases/download/v1.9.40-0/legacy.zip"
           wget "$url" -O "/tmp/legacy.zip" -q
           sudo unzip -o /tmp/legacy.zip -d /tmp/iso >/dev/null
       -
