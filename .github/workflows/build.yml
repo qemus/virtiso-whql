@@ -110,7 +110,6 @@ jobs:
           sudo cp -lpr /tmp/iso/Balloon/w11 /tmp/iso/Balloon/2k25
           sudo cp -lpr /tmp/iso/NetKVM/w11 /tmp/iso/NetKVM/2k25
           sudo cp -lpr /tmp/iso/pvpanic/w11 /tmp/iso/pvpanic/2k25
-          sudo cp -lpr /tmp/iso/qemupciserial/w11 /tmp/iso/qemupciserial/2k25
           sudo cp -lpr /tmp/iso/sriov/w11 /tmp/iso/sriov/2k25
           sudo cp -lpr /tmp/iso/viofs/w11 /tmp/iso/viofs/2k25
           sudo cp -lpr /tmp/iso/vioinput/w11 /tmp/iso/vioinput/2k25
@@ -119,6 +118,8 @@ jobs:
           sudo cp -lpr /tmp/iso/vioscsi/w11 /tmp/iso/vioscsi/2k25
           sudo cp -lpr /tmp/iso/vioserial/w11 /tmp/iso/vioserial/2k25
           sudo cp -lpr /tmp/iso/viostor/w11 /tmp/iso/viostor/2k25
+          sudo cp -lpr /tmp/iso/qemupciserial/w11 /tmp/iso/qemupciserial/2k25
+          sudo cp -lpr /tmp/iso/qemufwconfig/w11 /tmp/iso/qemufwconfig/2k25
           # WDF installer DLL
           sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/xp/amd64/WdfCoInstaller01009.dll
           sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/2k3/amd64/WdfCoInstaller01009.dll
