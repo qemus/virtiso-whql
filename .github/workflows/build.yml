@@ -104,6 +104,7 @@ jobs:
         id: symlinks
         run: |
           #!/bin/bash
+          ls /tmp/iso/
           ls /tmp/iso/qemufwconfig
           sudo cp -lpr /tmp/iso/viogpudo/w8.1 /tmp/iso/viogpudo/w8
           # Temporary Win2025 folders
