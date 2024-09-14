@@ -110,6 +110,7 @@ jobs:
           # Temporary Win2025 folders
           sudo cp -lpr /tmp/iso/amd64/w11 /tmp/iso/amd64/2k25
           sudo cp -lpr /tmp/iso/Balloon/w11 /tmp/iso/Balloon/2k25
+          sudo cp -lpr /tmp/iso/fwcfg/w11 /tmp/iso/fwcfg/2k25
           sudo cp -lpr /tmp/iso/NetKVM/w11 /tmp/iso/NetKVM/2k25
           sudo cp -lpr /tmp/iso/pvpanic/w11 /tmp/iso/pvpanic/2k25
           sudo cp -lpr /tmp/iso/sriov/w11 /tmp/iso/sriov/2k25
@@ -120,8 +121,8 @@ jobs:
           sudo cp -lpr /tmp/iso/vioscsi/w11 /tmp/iso/vioscsi/2k25
           sudo cp -lpr /tmp/iso/vioserial/w11 /tmp/iso/vioserial/2k25
           sudo cp -lpr /tmp/iso/viostor/w11 /tmp/iso/viostor/2k25
+          sudo cp -lpr /tmp/iso/qemufwcfg/w11 /tmp/iso/qemufwcfg/2k25
           sudo cp -lpr /tmp/iso/qemupciserial/w11 /tmp/iso/qemupciserial/2k25
-          sudo cp -lpr /tmp/iso/qemufwconfig/w11 /tmp/iso/qemufwconfig/2k25
           # WDF installer DLL
           sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/xp/amd64/WdfCoInstaller01009.dll
           sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/2k3/amd64/WdfCoInstaller01009.dll
