@@ -10,7 +10,7 @@
   
 </div></h1>
 
-VirtISO WHQL is an image of the signed VirtIO drivers for Windows guests.
+VirtISO is an image of the WHQL signed VirtIO drivers for Windows guests.
 
 # Features ✨
 
