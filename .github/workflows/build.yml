@@ -66,6 +66,15 @@ jobs:
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/rocky.iso" -C /tmp/iso/  
       -
+        name: Add some legacy drivers 
+        if: env.exists == 'false'
+        id: legacy
+        run: |
+          #!/bin/bash
+          url="https://github.com/qemus/virtiso-whql/releases/download/v1.9.39/legacy.zip"
+          wget "$url" -O "/tmp/legacy.zip" -q
+          sudo unzip -o /tmp/legacy.zip -d /tmp/iso >/dev/null
+      -
         name:  Strip unnecessary bloat
         if: env.exists == 'false'
         id: strip
@@ -90,21 +99,32 @@ jobs:
           # Remove empty directories
           sudo find . -type d -empty -delete
       -
-        name: Add some legacy drivers 
-        if: env.exists == 'false'
-        id: legacy
-        run: |
-          #!/bin/bash
-          url="https://github.com/qemus/virtiso-whql/releases/download/v1.9.39/legacy.zip"
-          wget "$url" -O "/tmp/legacy.zip" -q
-          sudo unzip /tmp/legacy.zip -d /tmp/iso >/dev/null
-      -
         name: Create symbolic links
         if: env.exists == 'false'
         id: symlinks
         run: |
           #!/bin/bash
           sudo cp -lpr /tmp/iso/viogpudo/w8.1 /tmp/iso/viogpudo/w8
+          # Temporary Win2025 folders
+          sudo cp -lpr /tmp/iso/amd64/w11 /tmp/iso/amd64/2k25
+          sudo cp -lpr /tmp/iso/Balloon/w11 /tmp/iso/Balloon/2k25
+          sudo cp -lpr /tmp/iso/fwconfig/w11 /tmp/iso/fwconfig/2k25
+          sudo cp -lpr /tmp/iso/NetKVM/w11 /tmp/iso/NetKVM/2k25
+          sudo cp -lpr /tmp/iso/pvpanic/w11 /tmp/iso/pvpanic/2k25
+          sudo cp -lpr /tmp/iso/qemufwconfig/w11 /tmp/iso/qemufwconfig/2k25
+          sudo cp -lpr /tmp/iso/qemupciserial/w11 /tmp/iso/qemupciserial/2k25
+          sudo cp -lpr /tmp/iso/qxl/w11 /tmp/iso/qxl/2k25
+          sudo cp -lpr /tmp/iso/qxldod/w11 /tmp/iso/qxldod/2k25
+          sudo cp -lpr /tmp/iso/smbus/w11 /tmp/iso/smbus/2k25
+          sudo cp -lpr /tmp/iso/sriov/w11 /tmp/iso/sriov/2k25
+          sudo cp -lpr /tmp/iso/viofs/w11 /tmp/iso/viofs/2k25
+          sudo cp -lpr /tmp/iso/vioinput/w11 /tmp/iso/vioinput/2k25
+          sudo cp -lpr /tmp/iso/viomem/w11 /tmp/iso/viomem/2k25
+          sudo cp -lpr /tmp/iso/viorng/w11 /tmp/iso/viorng/2k25
+          sudo cp -lpr /tmp/iso/vioscsi/w11 /tmp/iso/vioscsi/2k25
+          sudo cp -lpr /tmp/iso/vioserial/w11 /tmp/iso/vioserial/2k25
+          sudo cp -lpr /tmp/iso/viostor/w11 /tmp/iso/viostor/2k25
+          # WDF installer DLL
           sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/xp/amd64/WdfCoInstaller01009.dll
           sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/2k3/amd64/WdfCoInstaller01009.dll
           sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/2k8/amd64/WdfCoInstaller01009.dll         
