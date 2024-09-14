@@ -111,7 +111,6 @@ jobs:
           sudo cp -lpr /tmp/iso/NetKVM/w11 /tmp/iso/NetKVM/2k25
           sudo cp -lpr /tmp/iso/pvpanic/w11 /tmp/iso/pvpanic/2k25
           sudo cp -lpr /tmp/iso/qemupciserial/w11 /tmp/iso/qemupciserial/2k25
-          sudo cp -lpr /tmp/iso/smbus/w11 /tmp/iso/smbus/2k25
           sudo cp -lpr /tmp/iso/sriov/w11 /tmp/iso/sriov/2k25
           sudo cp -lpr /tmp/iso/viofs/w11 /tmp/iso/viofs/2k25
           sudo cp -lpr /tmp/iso/vioinput/w11 /tmp/iso/vioinput/2k25
