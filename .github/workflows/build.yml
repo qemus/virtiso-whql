@@ -110,7 +110,6 @@ jobs:
           sudo cp -lpr /tmp/iso/Balloon/w11 /tmp/iso/Balloon/2k25
           sudo cp -lpr /tmp/iso/NetKVM/w11 /tmp/iso/NetKVM/2k25
           sudo cp -lpr /tmp/iso/pvpanic/w11 /tmp/iso/pvpanic/2k25
-          sudo cp -lpr /tmp/iso/qemufwconfig/w11 /tmp/iso/qemufwconfig/2k25
           sudo cp -lpr /tmp/iso/qemupciserial/w11 /tmp/iso/qemupciserial/2k25
           sudo cp -lpr /tmp/iso/qxl/w11 /tmp/iso/qxl/2k25
           sudo cp -lpr /tmp/iso/qxldod/w11 /tmp/iso/qxldod/2k25
