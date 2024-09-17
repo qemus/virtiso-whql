@@ -33,7 +33,8 @@ jobs:
             offset=$((offset+limit))
             sleep 0.2
           done
-          pkg=(echo "$resp" | jq --raw-output '.body[] | select(.name=="virtio-win").version')
+          pkg=(echo "$resp" | jq --raw-output '.body[]')
+          #pkg=(echo "$resp" | jq --raw-output '.body[] | select(.name=="virtio-win").version')
           echo "pkg: $pkg"
           exit 33
           url="https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/"
