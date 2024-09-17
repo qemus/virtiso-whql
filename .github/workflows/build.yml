@@ -49,6 +49,7 @@ jobs:
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
           base=$(echo "$latest_tag" | cut -f1 -d"-")
           echo "latest_base=$base" >> $GITHUB_ENV
+          echo "latest_sum=$checksum" >> $GITHUB_ENV
       - 
         name: Check if the tag exists locally
         uses: action-pack/tag-exists@v1
