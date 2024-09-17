@@ -34,7 +34,10 @@ jobs:
             sleep 0.2
           done
           pkg=$(echo "$resp" | jq --raw-output '.body[] | select(.name=="virtio-win").version')
-          echo "pkg: $pkg"
+          release=$(echo "$resp" | jq --raw-output '.body[] | select(.name=="virtio-win").release')
+          checksum=$(echo "$resp" | jq --raw-output '.body[] | select(.name=="virtio-win").checksum')
+          pkg=$(echo "$pkg-$release")
+          echo "$pkg $checksum"
           exit 33
           url="https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/"
           resp=$(curl -sS "$url")
