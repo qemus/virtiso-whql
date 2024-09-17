@@ -31,6 +31,7 @@ jobs:
             resp=$(curl -s -H "Authorization: Bearer $token" -X GET "https://api.access.redhat.com/management/v1/packages/cset/rhel-9-for-x86_64-appstream-beta-rpms/arch/x86_64?limit=$limit&offset=$offset" -H "accept: application/json")
             offset=$((offset+limit))
             sleep 0.2
+            echo "resp: $resp"
           done
           echo "$resp"
           exit 33
