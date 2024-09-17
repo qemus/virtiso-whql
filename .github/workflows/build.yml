@@ -100,6 +100,7 @@ jobs:
           sudo rm -rf /tmp/iso/qxl-wddm-dod
           # Remove tools for other platforms
           sudo rm -rf /tmp/iso/i386
+          sudo rm -rf /tmp/iso/tools
           sudo rm -rf /tmp/iso/guest-agent
           sudo rm -f /tmp/iso/virtio-win-gt-x86.msi
           sudo rm -f /tmp/iso/virtio-win-guest-tools.exe
