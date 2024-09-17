@@ -32,7 +32,7 @@ jobs:
             offset=$((offset+limit))
             sleep 0.2
           done
-          echo "$resp" | grep -q 'virtio'
+          echo "$resp" | grep 'virtio'
           exit 33
           url="https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/"
           resp=$(curl -sS "$url")
