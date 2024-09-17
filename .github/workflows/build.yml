@@ -38,15 +38,7 @@ jobs:
           checksum=$(echo "$resp" | jq --raw-output '.body[] | select(.name=="virtio-win").checksum')
           pkg=$(echo "$pkg-$release")
           resp=$(curl -s -H "Authorization: Bearer $token" -X GET "https://api.access.redhat.com/management/v1/packages/$checksum/download" -H  "accept: application/json")
-          echo "xx $resp"
           download=$(echo "$resp" | jq --raw-output '.body.href')
-          echo "url: $download"
-
-          exit 33
-          url="https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/"
-          resp=$(curl -sS "$url")
-          pkg=$(echo "$resp" | grep '<a href="virtio-win')
-          pkg=$(echo "$pkg" | cut -c21- | cut -d '"' -f1)
           latest_tag="${pkg%.el*}"
           [ -z "$latest_tag" ] && echo "Tag not found!" && exit 1
           echo "Found tag: \"${latest_tag}\""
@@ -72,8 +64,7 @@ jobs:
         id: rocky
         run: |
           #!/bin/bash
-          url="https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/virtio-win-${{ env.latest_tag }}.el9_4.noarch.rpm"
-          wget "$url" -O "/tmp/latest.rpm" -q
+          wget "${{ env.latest_download }}" -O "/tmp/latest.rpm" -q
       -
         name: Process package
         if: env.exists == 'false'
@@ -84,9 +75,9 @@ jobs:
           rm -rf /tmp/rpm && mkdir /tmp/rpm
           cd /tmp/rpm
           rpm2cpio /tmp/latest.rpm | cpio -idmv 2> /dev/null
-          cp -L /tmp/rpm/usr/share/virtio-win/virtio-win.iso /tmp/rocky.iso
+          cp -L /tmp/rpm/usr/share/virtio-win/virtio-win.iso /tmp/latest.iso
           rm -rf /tmp/iso && mkdir /tmp/iso
-          bsdtar -xf "/tmp/rocky.iso" -C /tmp/iso/  
+          bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/  
       -
         name: Add some legacy drivers 
         if: env.exists == 'false'
