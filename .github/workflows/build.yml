@@ -37,7 +37,10 @@ jobs:
           release=$(echo "$resp" | jq --raw-output '.body[] | select(.name=="virtio-win").release')
           checksum=$(echo "$resp" | jq --raw-output '.body[] | select(.name=="virtio-win").checksum')
           pkg=$(echo "$pkg-$release")
-          echo "$pkg $checksum"
+          resp=$(curl -H "Authorization: Bearer $token" -X GET "https://api.access.redhat.com/management/v1/packages/$checksum/download" -H  "accept: application/json")
+          download=$(echo "$resp" | jq --raw-output '.[] | .body.href')
+          echo "url: $download"
+
           exit 33
           url="https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/"
           resp=$(curl -sS "$url")
@@ -49,7 +52,7 @@ jobs:
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
           base=$(echo "$latest_tag" | cut -f1 -d"-")
           echo "latest_base=$base" >> $GITHUB_ENV
-          echo "latest_sum=$checksum" >> $GITHUB_ENV
+          echo "latest_download=$download" >> $GITHUB_ENV
       - 
         name: Check if the tag exists locally
         uses: action-pack/tag-exists@v1
