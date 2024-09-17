@@ -26,12 +26,13 @@ jobs:
           token=$(echo "$resp" | jq --raw-output .access_token)
           offset=5000
           limit=100
-          while ! echo "$resp" | grep -q 'name": "virtio-win'
+          while ! echo "$resp" | grep -q 'name":"virtio-win'
           do
             resp=$(curl -s -H "Authorization: Bearer $token" -X GET "https://api.access.redhat.com/management/v1/packages/cset/rhel-9-for-x86_64-appstream-beta-rpms/arch/x86_64?limit=$limit&offset=$offset" -H "accept: application/json")
             echo "$resp" | grep -q 'count":0}' && exit 34
             offset=$((offset+limit))
             sleep 0.2
+            echo "$resp"
           done
           echo "$resp"
           exit 33
