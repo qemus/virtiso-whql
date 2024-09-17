@@ -22,8 +22,10 @@ jobs:
         name: Get latest version
         run: |
           #!/bin/bash
-          token=$(curl https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token -d grant_type=refresh_token -d client_id=rhsm-api -d refresh_token=${{ secrets.REDHAT_TOKEN }} | jq --raw-output .access_token)
-          echo $token
+          resp=$(curl https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token -d grant_type=refresh_token -d client_id=rhsm-api -d refresh_token=${{ secrets.REDHAT_TOKEN }})
+          echo "resp: $resp"
+          token=$(echo "$resp" | jq --raw-output .access_token)
+          echo "token: $token"
           exit 33
           url="https://download.rockylinux.org/pub/rocky/9/devel/x86_64/os/Packages/v/"
           resp=$(curl -sS "$url")
