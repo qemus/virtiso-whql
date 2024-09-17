@@ -37,8 +37,9 @@ jobs:
           release=$(echo "$resp" | jq --raw-output '.body[] | select(.name=="virtio-win").release')
           checksum=$(echo "$resp" | jq --raw-output '.body[] | select(.name=="virtio-win").checksum')
           pkg=$(echo "$pkg-$release")
-          resp=$(curl -H "Authorization: Bearer $token" -X GET "https://api.access.redhat.com/management/v1/packages/$checksum/download" -H  "accept: application/json")
-          download=$(echo "$resp" | jq --raw-output '.[] | .body.href')
+          resp=$(curl -s -H "Authorization: Bearer $token" -X GET "https://api.access.redhat.com/management/v1/packages/$checksum/download" -H  "accept: application/json")
+          echo "xx $resp"
+          download=$(echo "$resp" | jq --raw-output '.body.href')
           echo "url: $download"
 
           exit 33
