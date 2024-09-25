@@ -79,15 +79,6 @@ jobs:
           rm -rf /tmp/iso && mkdir /tmp/iso
           bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/  
       -
-        name: Add some legacy drivers 
-        if: env.exists == 'false'
-        id: legacy
-        run: |
-          #!/bin/bash
-          url="https://github.com/qemus/virtiso-whql/releases/download/v1.9.40-0/legacy.zip"
-          wget "$url" -O "/tmp/legacy.zip" -q
-          sudo unzip -o /tmp/legacy.zip -d /tmp/iso >/dev/null
-      -
         name:  Strip unnecessary bloat
         if: env.exists == 'false'
         id: strip
@@ -112,6 +103,15 @@ jobs:
           sudo find /tmp/iso -iname "arm64" -type d -exec rm -rf {} +
           # Remove empty directories
           sudo find . -type d -empty -delete
+      -
+        name: Add some legacy drivers 
+        if: env.exists == 'false'
+        id: legacy
+        run: |
+          #!/bin/bash
+          url="https://github.com/qemus/virtiso-whql/releases/download/v1.9.40-0/legacy.zip"
+          wget "$url" -O "/tmp/legacy.zip" -q
+          sudo unzip -o /tmp/legacy.zip -d /tmp/iso >/dev/null
       -
         name: Create symbolic links
         if: env.exists == 'false'
