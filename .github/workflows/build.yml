@@ -71,7 +71,7 @@ jobs:
         id: process
         run: |
           #!/bin/bash
-          sudo apt install rdfind genisoimage libarchive-tools
+          sudo apt install rdfind genisoimage libarchive-tools symlinks
           rm -rf /tmp/rpm && mkdir /tmp/rpm
           cd /tmp/rpm
           rpm2cpio /tmp/latest.rpm | cpio -idmv 2> /dev/null
@@ -127,7 +127,8 @@ jobs:
           sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/xp/amd64/WdfCoInstaller01009.dll
           sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/2k3/amd64/WdfCoInstaller01009.dll
           sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/2k8/amd64/WdfCoInstaller01009.dll
-          sudo rdfind -makehardlinks true /tmp/iso/
+          sudo rdfind -removeidentinode false -makehardlinks true /tmp/iso/
+          symlinks -orc /tmp/iso
       -      
         name: Build minified ISO
         if: env.exists == 'false'
