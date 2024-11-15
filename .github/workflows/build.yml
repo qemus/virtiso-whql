@@ -22,7 +22,9 @@ jobs:
         name: Get latest version
         run: |
           #!/bin/bash
+          echo "1"
           resp=$(curl -sS https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token -d grant_type=refresh_token -d client_id=rhsm-api -d refresh_token=${{ secrets.REDHAT_TOKEN }})
+          echo "2"
           token=$(echo "$resp" | jq --raw-output .access_token)
           offset=5000
           limit=100
