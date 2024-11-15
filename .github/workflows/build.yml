@@ -22,21 +22,17 @@ jobs:
         name: Get latest version
         run: |
           #!/bin/bash
-          echo "1"
           resp=$(curl -sS https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token -d grant_type=refresh_token -d client_id=rhsm-api -d refresh_token=${{ secrets.REDHAT_TOKEN }})
-          echo "2"
           token=$(echo "$resp" | jq --raw-output .access_token)
           offset=5000
           limit=100
           while ! echo "$resp" | grep -q 'name":"virtio-win'
           do
-            echo "3"
-            resp=$(curl -s -H "Authorization: Bearer $token" -X GET "https://api.access.redhat.com/management/v1/packages/cset/rhel-9-for-x86_64-appstream-beta-rpms/arch/x86_64?limit=$limit&offset=$offset&filter=latest" -H "accept: application/json")
+            resp=$(curl -s -H "Authorization: Bearer $token" -X GET "https://api.access.redhat.com/management/v1/packages/cset/rhel-9-for-x86_64-appstream-rpms/arch/x86_64?limit=$limit&offset=$offset&filter=latest" -H "accept: application/json")
             echo "$resp" | grep -q 'count":0}' && exit 34
             offset=$((offset+limit))
             sleep 0.2
           done
-          echo "4"
           pkg=$(echo "$resp" | jq --raw-output '.body[] | select(.name=="virtio-win").version')
           release=$(echo "$resp" | jq --raw-output '.body[] | select(.name=="virtio-win").release')
           checksum=$(echo "$resp" | jq --raw-output '.body[] | select(.name=="virtio-win").checksum')
