@@ -17,6 +17,10 @@ VirtISO is an image of the WHQL signed VirtIO drivers for Windows guests.
   - Stripped all .PDB (debug symbol) files
   - Stripped Guest Agent and Guest Tools
 
+# Download
+
+  You can download the latest .ISO [here](/releases/download/v1.9.44-0/virtio-win-1.9.44.iso) or from the [Releases](/releases) page.
+  
 # Usage 🚀
   
   It contains every driver the official image has, and even the .MSI installer, so there is zero loss of functionality.
