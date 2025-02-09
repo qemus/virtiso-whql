@@ -19,7 +19,7 @@ VirtISO is an image of the WHQL signed VirtIO drivers for Windows guests.
 
 # Download
 
-  You can download the latest .ISO [here](/releases/download/v1.9.44-0/virtio-win-1.9.44.iso) or from the [Releases](/releases) page.
+  You can download the [latest version](https://github.com/qemus/virtiso-whql/releases/download/v1.9.44-0/virtio-win-1.9.44.iso) from the [Releases](https://github.com/qemus/virtiso-whql/releases) page.
   
 # Usage 🚀
   
