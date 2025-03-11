@@ -30,7 +30,7 @@ jobs:
           while ! echo "$resp" | grep -q 'name":"virtio-win'
           do
             echo "Offset $offset"
-            resp=$(curl -s -H "Authorization: Bearer $token" -X GET "https://api.access.redhat.com/management/v1/packages/xcset/$distro/arch/x86_64?limit=$limit&offset=$offset&filter=latest" -H "accept: application/json")
+            resp=$(curl -s -H "Authorization: Bearer $token" -X GET "https://acpi.access.redhat.com/management/v1/packages/xcset/$distro/arch/x86_64?limit=$limit&offset=$offset&filter=latest" -H "accept: application/json")
             echo "$resp" | grep -q 'count":0}' && echo "$resp" && exit 34
             echo "$resp" | grep -q '{"error":{"code":' && echo "$resp" && exit 35
             offset=$((offset+limit))
