@@ -25,7 +25,7 @@ jobs:
           distro="rhel-10-for-x86_64-appstream-beta-rpms"
           resp=$(curl -sS https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token -d grant_type=refresh_token -d client_id=rhsm-api -d refresh_token=${{ secrets.REDHAT_TOKEN }})
           token=$(echo "$resp" | jq --raw-output .access_token)
-          offset=500
+          offset=3500
           limit=100
           while ! echo "$resp" | grep -q 'name":"virtio-win'
           do
