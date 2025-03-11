@@ -32,6 +32,7 @@ jobs:
             echo "Offset $offset"
             resp=$(curl -s -H "Authorization: Bearer $token" -X GET "https://api.access.redhat.com/management/v1/packages/cset/$distro/arch/x86_64?limit=$limit&offset=$offset&filter=latest" -H "accept: application/json")
             echo "$resp" | grep -q 'count":0}' && exit 34
+            echo "$resp" | grep -q '{"error":{"code":' && exit 35
             echo "$resp"
             offset=$((offset+limit))
             sleep 0.2
