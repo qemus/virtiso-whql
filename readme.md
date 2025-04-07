@@ -10,7 +10,7 @@
   
 </div></h1>
 
-VirtISO is an image of the WHQL signed VirtIO drivers for Windows guests.
+VirtISO is an image of the WHQL certified Redhat VirtIO drivers for Windows guests.
 
 It minimizes the official ISO from 700 MB to just 45 MB in size.
 
