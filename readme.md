@@ -21,7 +21,7 @@ It minimizes the official ISO from 700 MB to just 48 MB in size.
 
 # Download
 
-  You can download the [latest version](https://github.com/qemus/virtiso-whql/releases/download/v1.9.48-0/virtio-win-1.9.48.iso) from the [Releases](https://github.com/qemus/virtiso-whql/releases) page.
+  You can download the [latest version](https://github.com/qemus/virtiso-whql/releases/download/v1.9.53-0/virtio-win-1.9.53.iso) from the [Releases](https://github.com/qemus/virtiso-whql/releases) page.
   
 # Usage 🚀
   
