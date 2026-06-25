@@ -30,8 +30,8 @@ It minimizes the official ISO from 700 MB to just 48 MB in size.
 > [!TIP]
 > See also [VirtISO](https://github.com/qemus/virtiso/) for a minimal image of the unsigned drivers as provided by Fedora.
 
-# Stars 🌟
-[![Stars](https://starchart.cc/qemus/virtiso-whql.svg?variant=adaptive)](https://starchart.cc/qemus/virtiso-whql)
+## Stars 🌟
+[![Stargazers](https://raw.githubusercontent.com/star-stats/stars/refs/heads/data/charts/qemus-virtiso-whql.svg)](https://github.com/dobtc/qemus/virtiso-whql)
 
 # Disclaimer ⚖️
 
