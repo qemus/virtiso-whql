@@ -185,10 +185,19 @@ jobs:
 
           {
             echo "release_notes<<$delimiter"
-            rpm -qp \
-              --queryformat '## RPM changelog\n\n- %{CHANGELOGTIME[0]:day} %{CHANGELOGNAME[0]}\n\n%{CHANGELOGTEXT[0]}\n' \
-              /tmp/latest.rpm
+            echo "## RPM changelog"
             echo
+            rpm -qp --changelog /tmp/latest.rpm |
+              awk '
+                /^\* / {
+                  count++
+                  if (count == 2) {
+                    exit
+                  }
+                  sub(/^\* /, "- ")
+                }
+                { print }
+              '
             echo "$delimiter"
           } >> "$GITHUB_OUTPUT"
 
