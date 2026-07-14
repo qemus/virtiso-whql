@@ -181,25 +181,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y rdfind genisoimage libarchive-tools rpm unzip
 
-          delimiter="RPM_CHANGELOG_$(date +%s%N)"
-
-          {
-            echo "release_notes<<$delimiter"
-            echo "## RPM changelog"
-            echo
-            rpm -qp --changelog /tmp/latest.rpm |
-              awk '
-                /^\* / {
-                  count++
-                  if (count == 2) {
-                    exit
-                  }
-                  sub(/^\* /, "- ")
-                }
-                { print }
-              '
-            echo "$delimiter"
-          } >> "$GITHUB_OUTPUT"
+          rpm -qp --changelog /tmp/latest.rpm > /tmp/rpm-changelog
 
           rm -rf /tmp/rpm /tmp/iso
           mkdir -p /tmp/rpm /tmp/iso
@@ -210,6 +192,12 @@ jobs:
           cp -L \
             /tmp/rpm/usr/share/virtio-win/virtio-win.iso \
             /tmp/latest.iso
+
+          if bsdtar -tf /tmp/latest.iso | grep -Fxq 'data/info.json'; then
+            echo "data/info.json found in the Red Hat ISO."
+          else
+            echo "data/info.json not found in the Red Hat ISO."
+          fi
 
           bsdtar -xf /tmp/latest.iso -C /tmp/iso
       -
@@ -239,14 +227,16 @@ jobs:
             /tmp/iso/virtio-win-guest-tools.exe
 
           # Remove test and bridge utilities.
-          sudo find /tmp/iso/viosock \
-            -type f \
-            \( \
-              -iname 'viosock-test.exe' -o \
-              -iname 'viosocklib-test.exe' -o \
-              -iname 'vstbridge.exe' \
-            \) \
-            -delete
+          if [ -d /tmp/iso/viosock ]; then
+            sudo find /tmp/iso/viosock \
+              -type f \
+              \( \
+                -iname 'viosock-test.exe' -o \
+                -iname 'viosocklib-test.exe' -o \
+                -iname 'vstbridge.exe' \
+              \) \
+              -delete
+          fi
 
           # Remove debug symbols.
           sudo find /tmp/iso -type f -iname '*.pdb' -delete
@@ -307,6 +297,242 @@ jobs:
           find /tmp/iso -depth -type d -empty -delete
           EOF
       -
+        name: Generate release notes
+        if: env.exists == 'false'
+        id: notes
+        env:
+          LATEST_TAG: ${{ env.latest_tag }}
+        run: |
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
+          python3 <<'PY'
+          import json
+          import os
+          import re
+          from collections import defaultdict
+          from pathlib import Path
+
+          iso_root = Path("/tmp/iso")
+          info_file = iso_root / "data/info.json"
+          changelog_file = Path("/tmp/rpm-changelog")
+          output_file = Path("/tmp/release-notes.md")
+          latest_tag = os.environ["LATEST_TAG"]
+
+          if not changelog_file.is_file():
+              raise SystemExit(
+                  "ERROR: RPM changelog was not generated."
+              )
+
+          changelog = changelog_file.read_text(
+              encoding="utf-8",
+              errors="replace",
+          )
+
+          changelog = changelog.replace("\r\n", "\n").replace("\r", "\n")
+
+          entries = [
+              entry.strip()
+              for entry in re.split(
+                  r"(?=^\*[ \t])",
+                  changelog,
+                  flags=re.MULTILINE,
+              )
+              if entry.strip()
+          ]
+
+          selected_entry = ""
+
+          for entry in entries:
+              if re.search(
+                  rf"(?:^|[ \t-]){re.escape(latest_tag)}(?:\s|$)",
+                  entry,
+              ):
+                  selected_entry = entry
+                  break
+
+          if not selected_entry and entries:
+              selected_entry = entries[0]
+
+          selected_entry = re.sub(
+              r"^\*[ \t]*",
+              "",
+              selected_entry,
+          ).strip()
+
+          header = ""
+          details = []
+
+          if selected_entry:
+              lines = selected_entry.splitlines()
+              header = lines[0].strip()
+
+              for line in lines[1:]:
+                  line = line.strip()
+
+                  if not line:
+                      continue
+
+                  details.append(
+                      re.sub(r"^-[ \t]*", "", line)
+                  )
+
+          lines = ["## RPM changelog", ""]
+
+          if header:
+              lines.append(header)
+          else:
+              lines.append(latest_tag)
+
+          if details:
+              lines.append("")
+
+              for detail in details:
+                  lines.append(f"- {detail}")
+
+          if info_file.is_file():
+              windows_names = {
+                  "2k25": "Windows Server 2025",
+                  "w11": "Windows 11",
+                  "2k22": "Windows Server 2022",
+                  "2k19": "Windows Server 2019",
+                  "2k16": "Windows Server 2016",
+                  "w10": "Windows 10",
+                  "2k12R2": "Windows Server 2012 R2",
+                  "w8.1": "Windows 8.1",
+                  "2k12": "Windows Server 2012",
+                  "w8": "Windows 8",
+                  "2k8R2": "Windows Server 2008 R2",
+                  "w7": "Windows 7",
+                  "2k8": "Windows Server 2008",
+                  "2k3": "Windows Server 2003",
+                  "xp": "Windows XP",
+              }
+
+              preferred_order = list(windows_names)
+
+              with info_file.open(encoding="utf-8") as file:
+                  data = json.load(file)
+
+              grouped = defaultdict(lambda: defaultdict(set))
+
+              for driver in data.get("drivers", []):
+                  if str(driver.get("arch", "")).lower() != "amd64":
+                      continue
+
+                  inf_path = str(
+                      driver.get("inf_path", "")
+                  ).strip()
+
+                  if not inf_path:
+                      continue
+
+                  inf = Path(inf_path)
+
+                  if not inf.parts:
+                      continue
+
+                  component = inf.parts[0].lower()
+
+                  # Ignore the separate legacy QEMU FWCfg package.
+                  if component == "qemufwcfg":
+                      continue
+
+                  # Do not list drivers removed from the minified ISO.
+                  if not (iso_root / inf).is_file():
+                      continue
+
+                  windows_version = str(
+                      driver.get("windows_version", "")
+                  ).strip()
+
+                  driver_version = str(
+                      driver.get("driver_version", "")
+                  ).strip()
+
+                  if not windows_version or not driver_version:
+                      continue
+
+                  # Remove the date preceding the actual driver version.
+                  if "," in driver_version:
+                      driver_version = driver_version.split(
+                          ",",
+                          1,
+                      )[1].strip()
+
+                  component_name = str(
+                      driver.get("name", component)
+                  ).strip()
+
+                  if not component_name:
+                      component_name = component
+
+                  grouped[windows_version][driver_version].add(
+                      component_name
+                  )
+
+              windows_order = [
+                  version
+                  for version in preferred_order
+                  if version in grouped
+              ]
+
+              windows_order.extend(
+                  sorted(
+                      set(grouped) - set(windows_order),
+                      key=str.casefold,
+                  )
+              )
+
+              if grouped:
+                  lines.extend(["", "## Driver versions"])
+
+                  for windows_version in windows_order:
+                      versions = grouped[windows_version]
+
+                      heading = windows_names.get(
+                          windows_version,
+                          windows_version,
+                      )
+
+                      lines.extend(["", f"### {heading}", ""])
+
+                      for driver_version in sorted(
+                          versions,
+                          reverse=True,
+                      ):
+                          components = sorted(
+                              versions[driver_version],
+                              key=str.casefold,
+                          )
+
+                          lines.append(
+                              f"- `{driver_version}` — "
+                              f"{', '.join(components)}"
+                          )
+          else:
+              lines.extend([
+                  "",
+                  "_Driver versions are unavailable because "
+                  "`data/info.json` is not included in this ISO._",
+              ])
+
+          output_file.write_text(
+              "\n".join(lines).rstrip() + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          cat /tmp/release-notes.md
+
+          delimiter="RELEASE_NOTES_$(date +%s%N)"
+
+          {
+            echo "release_notes<<$delimiter"
+            cat /tmp/release-notes.md
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
+      -
         name: Deduplicate files
         if: env.exists == 'false'
         id: deduplicate
@@ -356,6 +582,11 @@ jobs:
             -V "virtio-win-${base}" \
             /tmp/iso
 
+          # Add a stable filename for the latest-release download URL.
+          cp \
+            "/tmp/virtio-win-${base}.iso" \
+            /tmp/virtio-win.iso
+
           # Keep the MSI files in the ISO, but omit them from the archives.
           sudo rm -f /tmp/iso/*.msi
 
@@ -379,6 +610,8 @@ jobs:
             "/tmp/virtio-win-${base}.iso" \
             "/tmp/virtio-win-${base}.tar.gz" \
             "/tmp/virtio-win-${base}.tar.xz"
+
+          chown "$owner" /tmp/virtio-win.iso
       -
         name: Checkout
         if: env.exists == 'false'
@@ -390,7 +623,7 @@ jobs:
         if: env.exists == 'false'
         uses: action-pack/github-release@v2
         with:
-          body: ${{ steps.process.outputs.release_notes }}
+          body: ${{ steps.notes.outputs.release_notes }}
           tag: "v${{ env.latest_tag }}"
           title: "v${{ env.latest_base }}"
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
@@ -399,7 +632,7 @@ jobs:
         if: env.exists == 'false'
         uses: AButler/upload-release-assets@v4.0
         with:
-          files: '/tmp/virtio-win-${{ env.latest_base }}.*'
+          files: '/tmp/virtio-win*'
           release-tag: "v${{ env.latest_tag }}"
           repo-token: ${{ secrets.REPO_ACCESS_TOKEN }}
       -
