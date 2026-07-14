@@ -193,12 +193,6 @@ jobs:
             /tmp/rpm/usr/share/virtio-win/virtio-win.iso \
             /tmp/latest.iso
 
-          if bsdtar -tf /tmp/latest.iso | grep -Fxq 'data/info.json'; then
-            echo "data/info.json found in the Red Hat ISO."
-          else
-            echo "data/info.json not found in the Red Hat ISO."
-          fi
-
           bsdtar -xf /tmp/latest.iso -C /tmp/iso
       -
         name: Strip unnecessary bloat
