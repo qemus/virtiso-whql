@@ -310,6 +310,7 @@ jobs:
 
           # Replace all other byte-identical files with hard links.
           sudo rdfind \
+            -outputname /dev/null \
             -removeidentinode false \
             -makehardlinks true \
             /tmp/iso
