@@ -18,133 +18,331 @@ jobs:
       packages: write
       contents: read
     steps:
-      - 
+      -
         name: Get latest version
         run: |
-          #!/bin/bash
-          distro="rhel-10-for-x86_64-appstream-eus-rpms"
-          resp=$(curl -sS https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token -d grant_type=refresh_token -d client_id=rhsm-api -d refresh_token=${{ secrets.REDHAT_TOKEN }})
-          token=$(echo "$resp" | jq --raw-output .access_token)
-          offset=3500
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
+          api="https://api.access.redhat.com/management/v1"
+          arch="x86_64"
           limit=100
-          while ! echo "$resp" | grep -q 'name":"virtio-win'
-          do
-            echo "Offset $offset"
-            resp=$(curl -s -H "Authorization: Bearer $token" -X GET "https://api.access.redhat.com/management/v1/packages/cset/$distro/arch/x86_64?limit=$limit&offset=$offset&filter=latest" -H "accept: application/json")
-            echo "$resp" | grep -q 'count":0}' && echo "$resp" && exit 34
-            echo "$resp" | grep -q '{"error":{"code":' && echo "$resp" && exit 35
-            offset=$((offset+limit))
-            sleep 0.2
+          initial_offset=3500
+
+          resp=$(
+            curl -fsS \
+              "https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token" \
+              --data-urlencode "grant_type=refresh_token" \
+              --data-urlencode "client_id=rhsm-api" \
+              --data-urlencode "refresh_token=${{ secrets.REDHAT_TOKEN }}"
+          )
+
+          token=$(jq -er '.access_token' <<< "$resp")
+
+          version=""
+          release=""
+          checksum=""
+          distro=""
+
+          for major in {15..7}; do
+            found="N"
+
+            for variant in "-beta" "-eus" ""; do
+              candidate="rhel-${major}-for-x86_64-appstream${variant}-rpms"
+              valid="N"
+
+              echo "Checking $candidate..."
+
+              for start_offset in "$initial_offset" 0; do
+                if [ "$start_offset" -eq 0 ]; then
+                  [ "$valid" = "Y" ] || break
+                  echo "Retrying $candidate from offset 0..."
+                fi
+
+                offset=$start_offset
+
+                while :; do
+                  echo "Offset $offset"
+
+                  resp=$(
+                    curl -sS \
+                      -H "Authorization: Bearer $token" \
+                      -H "Accept: application/json" \
+                      "$api/packages/cset/$candidate/arch/$arch?limit=$limit&offset=$offset&filter=latest"
+                  )
+
+                  if jq -e '.error' >/dev/null 2>&1 <<< "$resp"; then
+                    break
+                  fi
+
+                  if ! jq -e '.body | type == "array"' >/dev/null 2>&1 <<< "$resp"; then
+                    echo "Unexpected response for $candidate:"
+                    echo "$resp"
+                    break
+                  fi
+
+                  valid="Y"
+
+                  match=$(
+                    jq -c \
+                      'first(.body[]? | select(.name == "virtio-win")) // empty' \
+                      <<< "$resp"
+                  )
+
+                  if [ -n "$match" ]; then
+                    version=$(jq -er '.version' <<< "$match")
+                    release=$(jq -er '.release' <<< "$match")
+                    checksum=$(jq -er '.checksum' <<< "$match")
+                    distro=$candidate
+                    found="Y"
+                    break
+                  fi
+
+                  count=$(jq -r '.body | length' <<< "$resp")
+
+                  if [ "$count" -lt "$limit" ]; then
+                    break
+                  fi
+
+                  offset=$((offset + limit))
+                  sleep 0.2
+                done
+
+                [ "$found" = "Y" ] && break
+              done
+
+              [ "$found" = "Y" ] && break
+            done
+
+            [ "$found" = "Y" ] && break
           done
-          pkg=$(echo "$resp" | jq --raw-output '.body[] | select(.name=="virtio-win").version')
-          release=$(echo "$resp" | jq --raw-output '.body[] | select(.name=="virtio-win").release')
-          checksum=$(echo "$resp" | jq --raw-output '.body[] | select(.name=="virtio-win").checksum')
-          pkg=$(echo "$pkg-$release")
-          resp=$(curl -s -H "Authorization: Bearer $token" -X GET "https://api.access.redhat.com/management/v1/packages/$checksum/download" -H  "accept: application/json")
-          download=$(echo "$resp" | jq --raw-output '.body.href')
+
+          if [ -z "$version" ] || [ -z "$release" ] || [ -z "$checksum" ]; then
+            echo "ERROR: Could not find virtio-win in any RHEL AppStream content set." >&2
+            exit 1
+          fi
+
+          pkg="$version-$release"
           latest_tag="${pkg%.el*}"
-          [ -z "$latest_tag" ] && echo "Tag not found!" && exit 1
-          echo "Found tag: \"${latest_tag}\""
-          echo "latest_tag=$latest_tag" >> $GITHUB_ENV
-          base=$(echo "$latest_tag" | cut -f1 -d"-")
-          echo "latest_base=$base" >> $GITHUB_ENV
-          echo "latest_download=$download" >> $GITHUB_ENV
-      - 
+
+          if [ -z "$latest_tag" ]; then
+            echo "ERROR: Tag not found." >&2
+            exit 1
+          fi
+
+          echo "Selected content set: $distro"
+          echo "Found tag: \"$latest_tag\""
+
+          resp=$(
+            curl -fsS \
+              -H "Authorization: Bearer $token" \
+              -H "Accept: application/json" \
+              "$api/packages/$checksum/download"
+          )
+
+          download=$(jq -er '.body.href' <<< "$resp")
+          base=${latest_tag%%-*}
+
+          {
+            echo "latest_tag=$latest_tag"
+            echo "latest_base=$base"
+            echo "latest_download=$download"
+          } >> "$GITHUB_ENV"
+      -
         name: Check if the tag exists locally
         uses: action-pack/tag-exists@v1
         id: checkTag
-        with: 
-          tag: 'v${{ env.latest_tag }}'         
+        with:
+          tag: 'v${{ env.latest_tag }}'
       -
         name: Finish when found
         run: |
-          #!/bin/bash
-          val="${{ steps.checkTag.outputs.exists }}"
-          echo "exists=${val}" >> $GITHUB_ENV
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
+          echo "exists=${{ steps.checkTag.outputs.exists }}" >> "$GITHUB_ENV"
       -
         name: Download package
         if: env.exists == 'false'
         id: rocky
         run: |
-          #!/bin/bash
-          wget "${{ env.latest_download }}" -O "/tmp/latest.rpm" -q
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
+          wget "${{ env.latest_download }}" -O /tmp/latest.rpm -q
       -
         name: Process package
         if: env.exists == 'false'
         id: process
         run: |
-          #!/bin/bash
-          sudo apt install rdfind genisoimage libarchive-tools symlinks
-          rm -rf /tmp/rpm && mkdir /tmp/rpm
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
+          sudo apt-get update
+          sudo apt-get install -y rdfind genisoimage libarchive-tools rpm unzip
+
+          delimiter="RPM_CHANGELOG_$(date +%s%N)"
+
+          {
+            echo "release_notes<<$delimiter"
+            echo "## RPM changelog"
+            echo
+            rpm -qp --changelog /tmp/latest.rpm
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
+
+          rm -rf /tmp/rpm /tmp/iso
+          mkdir -p /tmp/rpm /tmp/iso
+
           cd /tmp/rpm
-          rpm2cpio /tmp/latest.rpm | cpio -idmv 2> /dev/null
-          cp -L /tmp/rpm/usr/share/virtio-win/virtio-win.iso /tmp/latest.iso
-          rm -rf /tmp/iso && mkdir /tmp/iso
-          bsdtar -xf "/tmp/latest.iso" -C /tmp/iso/  
+          rpm2cpio /tmp/latest.rpm | cpio -idm
+
+          cp -L \
+            /tmp/rpm/usr/share/virtio-win/virtio-win.iso \
+            /tmp/latest.iso
+
+          bsdtar -xf /tmp/latest.iso -C /tmp/iso
       -
-        name:  Strip unnecessary bloat
+        name: Strip unnecessary bloat
         if: env.exists == 'false'
         id: strip
         run: |
-          #!/bin/bash
-          cd /tmp/iso
-          # Remove bloat
-          sudo rm /tmp/iso/winfsp-*
-          sudo rm -rf /tmp/iso/spice-vdagent
-          sudo rm -rf /tmp/iso/qxl-wddm-dod
-          # Remove tools for other platforms
-          sudo rm -rf /tmp/iso/i386
-          sudo rm -rf /tmp/iso/tools
-          sudo rm -rf /tmp/iso/guest-agent
-          sudo rm -f /tmp/iso/virtio-win-gt-x86.msi
-          sudo rm -f /tmp/iso/virtio-win-guest-tools.exe
-          sudo rm -f /tmp/iso/guest-agent/qemu-ga-i386.msi
-          # Remove debug symbols
-          sudo find /tmp/iso -iname "*.pdb" -type f -delete
-          # Remove binaries for other platforms
-          sudo find /tmp/iso -iname "x86" -type d -exec rm -rf {} +
-          sudo find /tmp/iso -iname "arm64" -type d -exec rm -rf {} +
-          # Remove empty directories
-          sudo find . -type d -empty -delete
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
+          # Remove bloat.
+          rm -f /tmp/iso/winfsp-*
+          rm -rf \
+            /tmp/iso/spice-vdagent \
+            /tmp/iso/qxl-wddm-dod
+
+          # Remove tools for other platforms.
+          rm -rf \
+            /tmp/iso/i386 \
+            /tmp/iso/tools \
+            /tmp/iso/guest-agent
+
+          rm -f \
+            /tmp/iso/virtio-win-gt-x86.msi \
+            /tmp/iso/virtio-win-guest-tools.exe
+
+          # Remove debug symbols.
+          find /tmp/iso -type f -iname '*.pdb' -delete
+
+          # Remove modern drivers for other architectures.
+          find /tmp/iso \
+            -type d \
+            \( -iname x86 -o -iname arm64 \) \
+            -prune \
+            -exec rm -rf {} +
+
+          # Remove empty directories.
+          find /tmp/iso -depth -type d -empty -delete
       -
-        name: Add some legacy drivers 
+        name: Add legacy drivers
         if: env.exists == 'false'
         id: legacy
         run: |
-          #!/bin/bash
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
           url="https://github.com/qemus/virtiso-whql/releases/download/v1.9.40-0/legacy.zip"
-          wget "$url" -O "/tmp/legacy.zip" -q
-          sudo unzip -o /tmp/legacy.zip -d /tmp/iso >/dev/null
+
+          wget "$url" -O /tmp/legacy.zip -q
+          unzip -o /tmp/legacy.zip -d /tmp/iso >/dev/null
+
+          # Replace any symlinks from the archive with normal files or directories.
+          while IFS= read -r -d '' link; do
+            target=$(readlink -f -- "$link")
+
+            if [ -z "$target" ] || [ ! -e "$target" ]; then
+              echo "ERROR: Broken symlink in legacy archive: $link" >&2
+              exit 1
+            fi
+
+            case "$target" in
+              /tmp/iso/*) ;;
+              *)
+                echo "ERROR: Symlink points outside the ISO tree: $link -> $target" >&2
+                exit 1
+                ;;
+            esac
+
+            replacement="${link}.resolved"
+            rm -rf -- "$replacement"
+
+            if [ -d "$target" ]; then
+              cp -aL -- "$target" "$replacement"
+            else
+              cp -L --preserve=mode,timestamps -- "$link" "$replacement"
+            fi
+
+            rm -rf -- "$link"
+            mv -- "$replacement" "$link"
+          done < <(find /tmp/iso -type l -print0)
+
+          # Remove any empty directories left by the merge.
+          find /tmp/iso -depth -type d -empty -delete
       -
-        name: Create symbolic links
+        name: Deduplicate files
         if: env.exists == 'false'
-        id: symlinks
+        id: deduplicate
         run: |
-          #!/bin/bash
-          sudo cp -lpr /tmp/iso/viogpudo/w8.1 /tmp/iso/viogpudo/w8
-          # WDF installer DLL
-          sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/xp/amd64/WdfCoInstaller01009.dll
-          sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/2k3/amd64/WdfCoInstaller01009.dll
-          sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/Balloon/2k8/amd64/WdfCoInstaller01009.dll         
-          sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/pvpanic/2k8/amd64/WdfCoInstaller01009.dll
-          sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/xp/amd64/WdfCoInstaller01009.dll
-          sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/2k3/amd64/WdfCoInstaller01009.dll
-          sudo cp -lp /tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll /tmp/iso/vioserial/2k8/amd64/WdfCoInstaller01009.dll
-          sudo rdfind -removeidentinode false -makehardlinks true /tmp/iso/
-          symlinks -orc /tmp/iso
-      -      
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
+          # Reuse the Windows 8.1 viogpudo package for Windows 8.
+          cp -al \
+            /tmp/iso/viogpudo/w8.1 \
+            /tmp/iso/viogpudo/w8
+
+          # Add the required WDF installer DLL using hard links.
+          wdf="/tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll"
+
+          cp -l "$wdf" /tmp/iso/Balloon/xp/amd64/WdfCoInstaller01009.dll
+          cp -l "$wdf" /tmp/iso/Balloon/2k3/amd64/WdfCoInstaller01009.dll
+          cp -l "$wdf" /tmp/iso/Balloon/2k8/amd64/WdfCoInstaller01009.dll
+          cp -l "$wdf" /tmp/iso/pvpanic/2k8/amd64/WdfCoInstaller01009.dll
+          cp -l "$wdf" /tmp/iso/vioserial/xp/amd64/WdfCoInstaller01009.dll
+          cp -l "$wdf" /tmp/iso/vioserial/2k3/amd64/WdfCoInstaller01009.dll
+          cp -l "$wdf" /tmp/iso/vioserial/2k8/amd64/WdfCoInstaller01009.dll
+
+          # Replace all other byte-identical files with hard links.
+          rdfind \
+            -removeidentinode false \
+            -makehardlinks true \
+            /tmp/iso
+      -
         name: Build minified ISO
         if: env.exists == 'false'
         id: build
         run: |
-          #!/bin/bash
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
+          base="${{ env.latest_base }}"
+
           cd /tmp/iso
-          genisoimage -o /tmp/virtio-win-${{ env.latest_base }}.iso -r -iso-level 4 -input-charset iso8859-1 -V "virtio-win-${{ env.latest_base }}" /tmp/iso
-          sudo rm /tmp/iso/*.msi
-          echo & echo
-          tar -C /tmp/iso -cvzf /tmp/virtio-win-${{ env.latest_base }}.tar.gz * >/dev/null
-          echo & echo
-          XZ_OPT=-9 tar -C /tmp/iso -Jcvf /tmp/virtio-win-${{ env.latest_base }}.tar.xz * >/dev/null         
+
+          genisoimage \
+            -o "/tmp/virtio-win-${base}.iso" \
+            -r \
+            -iso-level 4 \
+            -input-charset iso8859-1 \
+            -cache-inodes \
+            -V "virtio-win-${base}" \
+            .
+
+          # Keep the MSI files in the ISO, but omit them from the archives.
+          rm -f ./*.msi
+
+          tar \
+            -czf "/tmp/virtio-win-${base}.tar.gz" \
+            .
+
+          XZ_OPT=-9 tar \
+            -cJf "/tmp/virtio-win-${base}.tar.xz" \
+            .
       -
         name: Checkout
         if: env.exists == 'false'
@@ -156,7 +354,7 @@ jobs:
         if: env.exists == 'false'
         uses: action-pack/github-release@v2
         with:
-          body: " "
+          body: ${{ steps.process.outputs.release_notes }}
           tag: "v${{ env.latest_tag }}"
           title: "v${{ env.latest_base }}"
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
@@ -169,15 +367,15 @@ jobs:
           release-tag: "v${{ env.latest_tag }}"
           repo-token: ${{ secrets.REPO_ACCESS_TOKEN }}
       -
-       name: Send mail
-       if: env.exists == 'false'
-       uses: action-pack/send-mail@v1
-       with:
-         to: ${{secrets.MAILTO}}
-         from: Github Actions <${{secrets.MAILTO}}>
-         connection_url: ${{secrets.MAIL_CONNECTION}}
-         subject: Build of ${{ github.event.repository.name }} v${{ env.latest_tag }} completed
-         body: |
-              The build job of ${{ github.event.repository.name }} v${{ env.latest_tag }} was completed successfully! 
-              
-              See https://github.com/${{ github.repository }}/actions for more information.
+        name: Send mail
+        if: env.exists == 'false'
+        uses: action-pack/send-mail@v1
+        with:
+          to: ${{ secrets.MAILTO }}
+          from: Github Actions <${{ secrets.MAILTO }}>
+          connection_url: ${{ secrets.MAIL_CONNECTION }}
+          subject: Build of ${{ github.event.repository.name }} v${{ env.latest_tag }} completed
+          body: |
+            The build job of ${{ github.event.repository.name }} v${{ env.latest_tag }} was completed successfully!
+
+            See https://github.com/${{ github.repository }}/actions for more information.
