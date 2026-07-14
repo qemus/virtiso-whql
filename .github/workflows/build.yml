@@ -179,7 +179,7 @@ jobs:
           set -Eeuo pipefail
 
           sudo apt-get update
-          sudo apt-get install -y acl rdfind genisoimage libarchive-tools rpm unzip
+          sudo apt-get install -y rdfind genisoimage libarchive-tools rpm unzip
 
           delimiter="RPM_CHANGELOG_$(date +%s%N)"
 
@@ -202,9 +202,6 @@ jobs:
             /tmp/latest.iso
 
           bsdtar -xf /tmp/latest.iso -C /tmp/iso
-
-          sudo setfacl -Rm "u:$(id -u):rwX" /tmp/iso
-          sudo setfacl -Rdm "u:$(id -u):rwX" /tmp/iso
       -
         name: Strip unnecessary bloat
         if: env.exists == 'false'
@@ -214,33 +211,33 @@ jobs:
           set -Eeuo pipefail
 
           # Remove bloat.
-          rm -f /tmp/iso/winfsp-*
-          rm -rf \
+          sudo rm -f /tmp/iso/winfsp-*
+          sudo rm -rf \
             /tmp/iso/spice-vdagent \
             /tmp/iso/qxl-wddm-dod
 
           # Remove tools for other platforms.
-          rm -rf \
+          sudo rm -rf \
             /tmp/iso/i386 \
             /tmp/iso/tools \
             /tmp/iso/guest-agent
 
-          rm -f \
+          sudo rm -f \
             /tmp/iso/virtio-win-gt-x86.msi \
             /tmp/iso/virtio-win-guest-tools.exe
 
           # Remove debug symbols.
-          find /tmp/iso -type f -iname '*.pdb' -delete
+          sudo find /tmp/iso -type f -iname '*.pdb' -delete
 
           # Remove modern drivers for other architectures.
-          find /tmp/iso \
+          sudo find /tmp/iso \
             -type d \
             \( -iname x86 -o -iname arm64 \) \
             -prune \
             -exec rm -rf {} +
 
           # Remove empty directories.
-          find /tmp/iso -depth -type d -empty -delete
+          sudo find /tmp/iso -depth -type d -empty -delete
       -
         name: Add legacy drivers
         if: env.exists == 'false'
@@ -252,9 +249,10 @@ jobs:
           url="https://github.com/qemus/virtiso-whql/releases/download/v1.9.40-0/legacy.zip"
 
           wget "$url" -O /tmp/legacy.zip -q
-          unzip -o /tmp/legacy.zip -d /tmp/iso >/dev/null
+          sudo unzip -o /tmp/legacy.zip -d /tmp/iso >/dev/null
 
           # Replace any symlinks from the archive with normal files or directories.
+          sudo bash -Eeuo pipefail <<'EOF'
           while IFS= read -r -d '' link; do
             target=$(readlink -f -- "$link")
 
@@ -284,8 +282,8 @@ jobs:
             mv -- "$replacement" "$link"
           done < <(find /tmp/iso -type l -print0)
 
-          # Remove any empty directories left by the merge.
           find /tmp/iso -depth -type d -empty -delete
+          EOF
       -
         name: Deduplicate files
         if: env.exists == 'false'
@@ -295,23 +293,23 @@ jobs:
           set -Eeuo pipefail
 
           # Reuse the Windows 8.1 viogpudo package for Windows 8.
-          cp -al \
+          sudo cp -al \
             /tmp/iso/viogpudo/w8.1 \
             /tmp/iso/viogpudo/w8
 
           # Add the required WDF installer DLL using hard links.
           wdf="/tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll"
 
-          cp -l "$wdf" /tmp/iso/Balloon/xp/amd64/WdfCoInstaller01009.dll
-          cp -l "$wdf" /tmp/iso/Balloon/2k3/amd64/WdfCoInstaller01009.dll
-          cp -l "$wdf" /tmp/iso/Balloon/2k8/amd64/WdfCoInstaller01009.dll
-          cp -l "$wdf" /tmp/iso/pvpanic/2k8/amd64/WdfCoInstaller01009.dll
-          cp -l "$wdf" /tmp/iso/vioserial/xp/amd64/WdfCoInstaller01009.dll
-          cp -l "$wdf" /tmp/iso/vioserial/2k3/amd64/WdfCoInstaller01009.dll
-          cp -l "$wdf" /tmp/iso/vioserial/2k8/amd64/WdfCoInstaller01009.dll
+          sudo cp -l "$wdf" /tmp/iso/Balloon/xp/amd64/WdfCoInstaller01009.dll
+          sudo cp -l "$wdf" /tmp/iso/Balloon/2k3/amd64/WdfCoInstaller01009.dll
+          sudo cp -l "$wdf" /tmp/iso/Balloon/2k8/amd64/WdfCoInstaller01009.dll
+          sudo cp -l "$wdf" /tmp/iso/pvpanic/2k8/amd64/WdfCoInstaller01009.dll
+          sudo cp -l "$wdf" /tmp/iso/vioserial/xp/amd64/WdfCoInstaller01009.dll
+          sudo cp -l "$wdf" /tmp/iso/vioserial/2k3/amd64/WdfCoInstaller01009.dll
+          sudo cp -l "$wdf" /tmp/iso/vioserial/2k8/amd64/WdfCoInstaller01009.dll
 
           # Replace all other byte-identical files with hard links.
-          rdfind \
+          sudo rdfind \
             -removeidentinode false \
             -makehardlinks true \
             /tmp/iso
@@ -324,28 +322,40 @@ jobs:
           set -Eeuo pipefail
 
           base="${{ env.latest_base }}"
+          owner="$(id -u):$(id -g)"
 
-          cd /tmp/iso
-
-          genisoimage \
+          sudo genisoimage \
             -o "/tmp/virtio-win-${base}.iso" \
             -r \
             -iso-level 4 \
             -input-charset iso8859-1 \
             -cache-inodes \
             -V "virtio-win-${base}" \
-            .
+            /tmp/iso
 
           # Keep the MSI files in the ISO, but omit them from the archives.
-          rm -f ./*.msi
+          sudo rm -f /tmp/iso/*.msi
 
-          tar \
+          sudo tar \
+            --owner=0 \
+            --group=0 \
+            --numeric-owner \
+            -C /tmp/iso \
             -czf "/tmp/virtio-win-${base}.tar.gz" \
             .
 
-          XZ_OPT=-9 tar \
+          sudo env XZ_OPT=-9 tar \
+            --owner=0 \
+            --group=0 \
+            --numeric-owner \
+            -C /tmp/iso \
             -cJf "/tmp/virtio-win-${base}.tar.xz" \
             .
+
+          sudo chown "$owner" \
+            "/tmp/virtio-win-${base}.iso" \
+            "/tmp/virtio-win-${base}.tar.gz" \
+            "/tmp/virtio-win-${base}.tar.xz"
       -
         name: Checkout
         if: env.exists == 'false'
