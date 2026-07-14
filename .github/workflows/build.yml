@@ -215,7 +215,9 @@ jobs:
           sudo rm -f /tmp/iso/winfsp-*
           sudo rm -rf \
             /tmp/iso/spice-vdagent \
-            /tmp/iso/qxl-wddm-dod
+            /tmp/iso/qxl-wddm-dod \
+            /tmp/iso/qxl \
+            /tmp/iso/qxldod
 
           # Remove tools for other platforms.
           sudo rm -rf \
@@ -226,6 +228,16 @@ jobs:
           sudo rm -f \
             /tmp/iso/virtio-win-gt-x86.msi \
             /tmp/iso/virtio-win-guest-tools.exe
+
+          # Remove test and bridge utilities.
+          sudo find /tmp/iso/viosock \
+            -type f \
+            \( \
+              -iname 'viosock-test.exe' -o \
+              -iname 'viosocklib-test.exe' -o \
+              -iname 'vstbridge.exe' \
+            \) \
+            -delete
 
           # Remove debug symbols.
           sudo find /tmp/iso -type f -iname '*.pdb' -delete
