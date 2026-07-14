@@ -179,7 +179,17 @@ jobs:
           set -Eeuo pipefail
 
           sudo apt-get update
-          sudo apt-get install -y rdfind genisoimage libarchive-tools unzip
+          sudo apt-get install -y rdfind genisoimage libarchive-tools rpm unzip
+
+          delimiter="RPM_CHANGELOG_$(date +%s%N)"
+
+          {
+            echo "release_notes<<$delimiter"
+            echo "## RPM changelog"
+            echo
+            rpm -qp --changelog /tmp/latest.rpm
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
 
           rm -rf /tmp/rpm /tmp/iso
           mkdir -p /tmp/rpm /tmp/iso
@@ -193,6 +203,42 @@ jobs:
 
           bsdtar -xf /tmp/latest.iso -C /tmp/iso
       -
+        name: Strip unnecessary bloat
+        if: env.exists == 'false'
+        id: strip
+        run: |
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
+          # Remove bloat.
+          rm -f /tmp/iso/winfsp-*
+          rm -rf \
+            /tmp/iso/spice-vdagent \
+            /tmp/iso/qxl-wddm-dod
+
+          # Remove tools for other platforms.
+          rm -rf \
+            /tmp/iso/i386 \
+            /tmp/iso/tools \
+            /tmp/iso/guest-agent
+
+          rm -f \
+            /tmp/iso/virtio-win-gt-x86.msi \
+            /tmp/iso/virtio-win-guest-tools.exe
+
+          # Remove debug symbols.
+          find /tmp/iso -type f -iname '*.pdb' -delete
+
+          # Remove modern drivers for other architectures.
+          find /tmp/iso \
+            -type d \
+            \( -iname x86 -o -iname arm64 \) \
+            -prune \
+            -exec rm -rf {} +
+
+          # Remove empty directories.
+          find /tmp/iso -depth -type d -empty -delete
+      -
         name: Add legacy drivers
         if: env.exists == 'false'
         id: legacy
@@ -205,7 +251,7 @@ jobs:
           wget "$url" -O /tmp/legacy.zip -q
           unzip -o /tmp/legacy.zip -d /tmp/iso >/dev/null
 
-          # Materialize any symlinks as normal files or directories.
+          # Replace any symlinks from the archive with normal files or directories.
           while IFS= read -r -d '' link; do
             target=$(readlink -f -- "$link")
 
@@ -234,41 +280,8 @@ jobs:
             rm -rf -- "$link"
             mv -- "$replacement" "$link"
           done < <(find /tmp/iso -type l -print0)
-      -
-        name: Strip unnecessary bloat
-        if: env.exists == 'false'
-        id: strip
-        run: |
-          #!/usr/bin/env bash
-          set -Eeuo pipefail
 
-          # Remove bloat.
-          rm -f /tmp/iso/winfsp-*
-          rm -rf \
-            /tmp/iso/spice-vdagent \
-            /tmp/iso/qxl-wddm-dod
-
-          # Remove tools for other platforms.
-          rm -rf \
-            /tmp/iso/i386 \
-            /tmp/iso/tools \
-            /tmp/iso/guest-agent
-
-          rm -f \
-            /tmp/iso/virtio-win-gt-x86.msi \
-            /tmp/iso/virtio-win-guest-tools.exe
-
-          # Remove debug symbols.
-          find /tmp/iso -type f -iname '*.pdb' -delete
-
-          # Remove binaries for other architectures.
-          find /tmp/iso \
-            -type d \
-            \( -iname x86 -o -iname arm64 \) \
-            -prune \
-            -exec rm -rf {} +
-
-          # Remove empty directories.
+          # Remove any empty directories left by the merge.
           find /tmp/iso -depth -type d -empty -delete
       -
         name: Deduplicate files
@@ -341,7 +354,7 @@ jobs:
         if: env.exists == 'false'
         uses: action-pack/github-release@v2
         with:
-          body: " "
+          body: ${{ steps.process.outputs.release_notes }}
           tag: "v${{ env.latest_tag }}"
           title: "v${{ env.latest_base }}"
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
