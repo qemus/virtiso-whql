@@ -62,7 +62,7 @@ jobs:
                 offset=$start_offset
 
                 while :; do
-                  echo "Offset $offset"
+                  [[ "$offset" != "$initial_offset" ]] && echo "Offset $offset"
 
                   resp=$(
                     curl -sS \
@@ -179,7 +179,7 @@ jobs:
           set -Eeuo pipefail
 
           sudo apt-get update
-          sudo apt-get install -y rdfind genisoimage libarchive-tools rpm unzip
+          sudo apt-get install -y acl rdfind genisoimage libarchive-tools rpm unzip
 
           delimiter="RPM_CHANGELOG_$(date +%s%N)"
 
@@ -202,6 +202,9 @@ jobs:
             /tmp/latest.iso
 
           bsdtar -xf /tmp/latest.iso -C /tmp/iso
+
+          sudo setfacl -Rm "u:$(id -u):rwX" /tmp/iso
+          sudo setfacl -Rdm "u:$(id -u):rwX" /tmp/iso
       -
         name: Strip unnecessary bloat
         if: env.exists == 'false'
