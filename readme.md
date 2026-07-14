@@ -6,7 +6,7 @@
   
   [![Build](https://github.com/qemus/virtiso-whql/actions/workflows/build.yml/badge.svg)](https://github.com/qemus/virtiso-whql/)
   [![Version](https://img.shields.io/github/v/release/qemus/virtiso-whql?label=version&sort=semver&display_name=release&color=066da5)](https://github.com/qemus/virtiso-whql/releases)
-  [![Size](https://img.shields.io/badge/size-48_MB-steelblue?style=flat&color=066da5)](https://github.com/qemus/virtiso-whql/releases)
+  [![Size](https://img.shields.io/badge/size-56_MB-steelblue?style=flat&color=066da5)](https://github.com/qemus/virtiso-whql/releases)
   
 </div></h1>
 
@@ -24,7 +24,7 @@ VirtISO is an image of the WHQL certified VirtIO drivers for Windows guests as p
 
 # Download
 
-  You can download the [latest version](https://github.com/qemus/virtiso-whql/releases/download/v1.9.57-0/virtio-win-1.9.57.iso) from the [Releases](https://github.com/qemus/virtiso-whql/releases) page.
+  You can download the [latest version](https://github.com/qemus/virtiso-whql/releases/download/v1.9.58-0/virtio-win-1.9.58.iso) from the [Releases](https://github.com/qemus/virtiso-whql/releases) page.
   
 # Usage 🚀
   
