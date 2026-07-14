@@ -286,6 +286,58 @@ jobs:
           find /tmp/iso -depth -type d -empty -delete
           EOF
       -
+        name: Verify driver folders
+        if: env.exists == 'false'
+        id: verify
+        run: |
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
+          missing="/tmp/missing-driver-folders.txt"
+          : > "$missing"
+
+          while IFS=: read -r driver versions; do
+            [ -n "$driver" ] || continue
+
+            for version in $versions; do
+              path="/tmp/iso/$driver/$version"
+
+              if [ ! -d "$path" ]; then
+                echo "$driver/$version" >> "$missing"
+              fi
+            done
+          done <<'EOF'
+          Balloon:2k3 xp 2k8 2k8R2 w7 w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
+          NetKVM:2k3 xp 2k8 2k8R2 w7 w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
+          fwcfg:w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
+          pvpanic:2k8 2k8R2 w7 w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
+          qemufwcfg:2k16 2k19 w10 w11 2k22 2k25
+          qemupciserial:2k8 2k8R2 w7 w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
+          sata:xp
+          smbus:2k8
+          sriov:w8.1 2k12R2 2k16 2k19 w10 w11 2k22 2k25
+          viofs:w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
+          viogpudo:w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
+          vioinput:2k8R2 w7 w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
+          viomem:2k16 2k19 w10 w11 2k22 2k25
+          viorng:2k8R2 w7 w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
+          vioscsi:2k8 2k8R2 w7 w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
+          vioserial:2k3 xp 2k8 2k8R2 w7 w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
+          viosock:2k16 2k19 w10 w11 2k22 2k25
+          viostor:2k3 xp 2k8 2k8R2 w7 w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
+          EOF
+
+          if [ -s "$missing" ]; then
+            echo "ERROR: Previously available driver folders are missing:" >&2
+            sed 's/^/  - /' "$missing" >&2
+            echo >&2
+            echo "The upstream package may have dropped legacy Windows drivers." >&2
+            echo "Add the missing drivers to legacy.zip before publishing this release." >&2
+            exit 1
+          fi
+
+          echo "All expected driver folders are present."
+      -
         name: Generate release notes
         if: env.exists == 'false'
         id: notes
@@ -307,6 +359,11 @@ jobs:
           changelog_file = Path("/tmp/rpm-changelog")
           output_file = Path("/tmp/release-notes.md")
           latest_tag = os.environ["LATEST_TAG"]
+
+          if not info_file.is_file():
+              raise SystemExit(
+                  "ERROR: data/info.json was not found in the ISO."
+              )
 
           if not changelog_file.is_file():
               raise SystemExit(
@@ -379,132 +436,125 @@ jobs:
               for detail in details:
                   lines.append(f"- {detail}")
 
-          if info_file.is_file():
-              windows_names = {
-                  "2k25": "Windows Server 2025",
-                  "w11": "Windows 11",
-                  "2k22": "Windows Server 2022",
-                  "2k19": "Windows Server 2019",
-                  "2k16": "Windows Server 2016",
-                  "w10": "Windows 10",
-                  "2k12R2": "Windows Server 2012 R2",
-                  "w8.1": "Windows 8.1",
-                  "2k12": "Windows Server 2012",
-                  "w8": "Windows 8",
-                  "2k8R2": "Windows Server 2008 R2",
-                  "w7": "Windows 7",
-                  "2k8": "Windows Server 2008",
-                  "2k3": "Windows Server 2003",
-                  "xp": "Windows XP",
-              }
+          windows_names = {
+              "2k25": "Windows Server 2025",
+              "w11": "Windows 11",
+              "2k22": "Windows Server 2022",
+              "2k19": "Windows Server 2019",
+              "2k16": "Windows Server 2016",
+              "w10": "Windows 10",
+              "2k12R2": "Windows Server 2012 R2",
+              "w8.1": "Windows 8.1",
+              "2k12": "Windows Server 2012",
+              "w8": "Windows 8",
+              "2k8R2": "Windows Server 2008 R2",
+              "w7": "Windows 7",
+              "2k8": "Windows Server 2008",
+              "2k3": "Windows Server 2003",
+              "xp": "Windows XP",
+          }
 
-              preferred_order = list(windows_names)
+          preferred_order = list(windows_names)
 
-              with info_file.open(encoding="utf-8") as file:
-                  data = json.load(file)
+          with info_file.open(encoding="utf-8") as file:
+              data = json.load(file)
 
-              grouped = defaultdict(lambda: defaultdict(set))
+          grouped = defaultdict(lambda: defaultdict(set))
 
-              for driver in data.get("drivers", []):
-                  if str(driver.get("arch", "")).lower() != "amd64":
-                      continue
+          for driver in data.get("drivers", []):
+              if str(driver.get("arch", "")).lower() != "amd64":
+                  continue
 
-                  inf_path = str(
-                      driver.get("inf_path", "")
-                  ).strip()
+              inf_path = str(
+                  driver.get("inf_path", "")
+              ).strip()
 
-                  if not inf_path:
-                      continue
+              if not inf_path:
+                  continue
 
-                  inf = Path(inf_path)
+              inf = Path(inf_path)
 
-                  if not inf.parts:
-                      continue
+              if not inf.parts:
+                  continue
 
-                  component = inf.parts[0].lower()
+              component = inf.parts[0].lower()
 
-                  # Ignore the separate legacy QEMU FWCfg package.
-                  if component == "qemufwcfg":
-                      continue
+              # Ignore the separate legacy QEMU FWCfg package.
+              if component == "qemufwcfg":
+                  continue
 
-                  # Do not list drivers removed from the minified ISO.
-                  if not (iso_root / inf).is_file():
-                      continue
+              # Do not list drivers removed from the minified ISO.
+              if not (iso_root / inf).is_file():
+                  continue
 
-                  windows_version = str(
-                      driver.get("windows_version", "")
-                  ).strip()
+              windows_version = str(
+                  driver.get("windows_version", "")
+              ).strip()
 
-                  driver_version = str(
-                      driver.get("driver_version", "")
-                  ).strip()
+              driver_version = str(
+                  driver.get("driver_version", "")
+              ).strip()
 
-                  if not windows_version or not driver_version:
-                      continue
+              if not windows_version or not driver_version:
+                  continue
 
-                  # Remove the date preceding the actual driver version.
-                  if "," in driver_version:
-                      driver_version = driver_version.split(
-                          ",",
-                          1,
-                      )[1].strip()
+              # Remove the date preceding the actual driver version.
+              if "," in driver_version:
+                  driver_version = driver_version.split(
+                      ",",
+                      1,
+                  )[1].strip()
 
-                  component_name = str(
-                      driver.get("name", component)
-                  ).strip()
+              component_name = str(
+                  driver.get("name", component)
+              ).strip()
 
-                  if not component_name:
-                      component_name = component
+              if not component_name:
+                  component_name = component
 
-                  grouped[windows_version][driver_version].add(
-                      component_name
-                  )
-
-              windows_order = [
-                  version
-                  for version in preferred_order
-                  if version in grouped
-              ]
-
-              windows_order.extend(
-                  sorted(
-                      set(grouped) - set(windows_order),
-                      key=str.casefold,
-                  )
+              grouped[windows_version][driver_version].add(
+                  component_name
               )
 
-              if grouped:
-                  lines.extend(["", "## Driver versions"])
+          windows_order = [
+              version
+              for version in preferred_order
+              if version in grouped
+          ]
 
-                  for windows_version in windows_order:
-                      versions = grouped[windows_version]
+          windows_order.extend(
+              sorted(
+                  set(grouped) - set(windows_order),
+                  key=str.casefold,
+              )
+          )
 
-                      heading = windows_names.get(
-                          windows_version,
-                          windows_version,
+          if grouped:
+              lines.extend(["", "## Driver versions"])
+
+              for windows_version in windows_order:
+                  versions = grouped[windows_version]
+
+                  heading = windows_names.get(
+                      windows_version,
+                      windows_version,
+                  )
+
+                  lines.extend(["", f"### {heading}", ""])
+
+                  for driver_version in sorted(
+                      versions,
+                      reverse=True,
+                  ):
+                      components = sorted(
+                          versions[driver_version],
+                          key=str.casefold,
                       )
 
-                      lines.extend(["", f"### {heading}", ""])
-
-                      for driver_version in sorted(
-                          versions,
-                          reverse=True,
-                      ):
-                          components = sorted(
-                              versions[driver_version],
-                              key=str.casefold,
-                          )
-
-                          lines.append(
-                              f"- `{driver_version}` — "
-                              f"{', '.join(components)}"
-                          )
-          else:
-              lines.extend([
-                  "",
-                  "_Driver versions are unavailable because "
-                  "`data/info.json` is not included in this ISO._",
-              ])
+                      lines.append(
+                          f"- `{driver_version}` — "
+                          f"{', '.join(components)}"
+                      )
 
           output_file.write_text(
               "\n".join(lines).rstrip() + "\n",
