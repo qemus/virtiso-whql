@@ -17,7 +17,6 @@ VirtISO is an image of the WHQL certified VirtIO drivers for Windows guests as p
 - Provides a VirtIO WHQL drivers ISO for Windows guests
 - Based on the Red Hat VirtIO driver image
 - Reduces the official ISO from about 700 MB to about 50 MB
-- Additionally supports Windows 7 and below via non-WHQL drivers
 - Removes debug symbol files
 - Removes Guest Agent and Guest Tools
 
