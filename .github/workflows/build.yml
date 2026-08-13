@@ -230,6 +230,22 @@ jobs:
           # Remove debug symbols.
           sudo find /tmp/iso -type f -iname '*.pdb' -delete
 
+          # Preserve the WDF co-installers before removing x86 drivers.
+          for arch in x86 amd64; do
+
+            wdf=$(find /tmp/iso -type f \
+              -ipath "*/$arch/WdfCoInstaller01009.dll" \
+              -print -quit)
+
+            if [ -z "$wdf" ]; then
+              echo "ERROR: Failed to locate the $arch WDF co-installer." >&2
+              exit 1
+            fi
+
+            cp -L "$wdf" "/tmp/WdfCoInstaller01009-$arch.dll"
+
+          done
+
           # Remove modern drivers for other architectures.
           sudo find /tmp/iso \
             -type d \
@@ -251,6 +267,12 @@ jobs:
 
           wget "$url" -O /tmp/legacy.zip -q
           sudo unzip -o /tmp/legacy.zip -d /tmp/iso >/dev/null
+          rm -f /tmp/legacy.zip
+
+          # Do not let the legacy overlay reintroduce debug files or nested archives.
+          sudo find /tmp/iso -type f \
+            \( -iname '*.pdb' -o -iname 'legacy*.zip' \) \
+            -delete
 
           # Replace any symlinks from the archive with normal files or directories.
           sudo bash -Eeuo pipefail <<'EOF'
@@ -532,16 +554,37 @@ jobs:
             /tmp/iso/viogpudo/w8.1 \
             /tmp/iso/viogpudo/w8
 
-          # Add the required WDF installer DLL using hard links.
-          wdf="/tmp/iso/vioserial/w7/amd64/WdfCoInstaller01009.dll"
+          # Add missing WDF installer DLLs using hard links.
+          while IFS= read -r -d '' inf; do
 
-          sudo cp -l "$wdf" /tmp/iso/Balloon/xp/amd64/WdfCoInstaller01009.dll
-          sudo cp -l "$wdf" /tmp/iso/Balloon/2k3/amd64/WdfCoInstaller01009.dll
-          sudo cp -l "$wdf" /tmp/iso/Balloon/2k8/amd64/WdfCoInstaller01009.dll
-          sudo cp -l "$wdf" /tmp/iso/pvpanic/2k8/amd64/WdfCoInstaller01009.dll
-          sudo cp -l "$wdf" /tmp/iso/vioserial/xp/amd64/WdfCoInstaller01009.dll
-          sudo cp -l "$wdf" /tmp/iso/vioserial/2k3/amd64/WdfCoInstaller01009.dll
-          sudo cp -l "$wdf" /tmp/iso/vioserial/2k8/amd64/WdfCoInstaller01009.dll
+            grep -aFqi 'WdfCoInstaller01009.dll' "$inf" || continue
+
+            dir=$(dirname "$inf")
+            [ -f "$dir/WdfCoInstaller01009.dll" ] && continue
+
+            arch=${dir##*/}
+
+            case "$arch" in
+              x86 | amd64 ) ;;
+              * )
+                echo "ERROR: Unsupported WDF driver architecture: $dir" >&2
+                exit 1 ;;
+            esac
+
+            wdf="/tmp/WdfCoInstaller01009-$arch.dll"
+
+            if [ ! -f "$wdf" ]; then
+              echo "ERROR: Failed to locate the $arch WDF co-installer." >&2
+              exit 1
+            fi
+
+            sudo cp -l "$wdf" "$dir/WdfCoInstaller01009.dll"
+
+          done < <(find /tmp/iso -type f -iname '*.inf' -print0)
+
+          rm -f \
+            /tmp/WdfCoInstaller01009-x86.dll \
+            /tmp/WdfCoInstaller01009-amd64.dll
 
           # Replace all other byte-identical files with hard links.
           sudo rdfind \
@@ -584,7 +627,7 @@ jobs:
           viogpudo:w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
           vioinput:2k8R2 w7 w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
           viomem:2k16 2k19 w10 w11 2k22 2k25
-          viorng:2k8R2 w7 w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
+          viorng:2k8 2k8R2 w7 w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
           vioscsi:2k8 2k8R2 w7 w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
           vioserial:2k3 xp 2k8 2k8R2 w7 w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
           viosock:2k16 2k19 w10 w11 2k22 2k25
