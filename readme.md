@@ -6,7 +6,7 @@
   
   [![Build](https://github.com/qemus/virtiso-whql/actions/workflows/build.yml/badge.svg)](https://github.com/qemus/virtiso-whql/)
   [![Version](https://img.shields.io/github/v/release/qemus/virtiso-whql?label=version&sort=semver&display_name=release&color=066da5)](https://github.com/qemus/virtiso-whql/releases)
-  [![Size](https://img.shields.io/badge/size-110_MB-steelblue?style=flat&color=066da5)](https://github.com/qemus/virtiso-whql/releases)
+  [![Size](https://img.shields.io/badge/size-54_MB-steelblue?style=flat&color=066da5)](https://github.com/qemus/virtiso-whql/releases)
   
 </div></h1>
 
@@ -16,7 +16,7 @@ VirtISO is an image of the WHQL certified VirtIO drivers for Windows guests as p
 
 - Provides a VirtIO WHQL drivers ISO for Windows guests
 - Based on the Red Hat VirtIO driver image
-- Reduces the official ISO from about 700 MB to about 100 MB
+- Reduces the official ISO from about 800 MB to about 50 MB
 - Supports Windows 7 and below via non-WHQL drivers
 - Removes debug symbol files
 - Removes Guest Agent and Guest Tools
