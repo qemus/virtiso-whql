@@ -655,6 +655,11 @@ jobs:
           base="${{ env.latest_base }}"
           owner="$(id -u):$(id -g)"
 
+          if [ -d /tmp/iso/win9x ]; then
+            sudo rm -rf /tmp/win9x
+            sudo mv /tmp/iso/win9x /tmp/win9x
+          fi
+
           sudo genisoimage \
             -o "/tmp/virtio-win-${base}.iso" \
             -r \
@@ -679,6 +684,10 @@ jobs:
             -C /tmp/iso \
             -czf "/tmp/virtio-win-${base}.tar.gz" \
             .
+
+          if [ -d /tmp/win9x ]; then
+            sudo mv /tmp/win9x /tmp/iso/win9x
+          fi
 
           sudo env XZ_OPT=-9 tar \
             --owner=0 \
