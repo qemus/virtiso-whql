@@ -269,6 +269,50 @@ jobs:
           sudo unzip -o /tmp/legacy.zip -d /tmp/iso >/dev/null
           rm -f /tmp/legacy.zip
 
+          # Replace QBochs with the latest release.
+          sudo rm -rf /tmp/iso/qbochs
+          sudo mkdir -p /tmp/iso/qbochs
+          wget "https://github.com/qemus/qemu-bochs/releases/latest/download/QBochs.zip" -O /tmp/qbochs.zip -q
+          sudo unzip -q /tmp/qbochs.zip -d /tmp/iso/qbochs
+          rm -f /tmp/qbochs.zip
+
+          # Replace QEMouse with the latest release.
+          sudo rm -rf /tmp/iso/win9x/qemouse
+          sudo mkdir -p /tmp/iso/win9x/qemouse
+          wget "https://github.com/qemus/qemouse/releases/latest/download/qemouse.zip" -O /tmp/qemouse.zip -q
+          sudo unzip -q /tmp/qemouse.zip -d /tmp/iso/win9x/qemouse
+          rm -f /tmp/qemouse.zip
+
+          # Replace VMDisp9x with the latest release.
+          sudo rm -rf /tmp/iso/win9x/vmdisp9x
+          rm -rf /tmp/vmdisp9x
+          sudo mkdir -p /tmp/iso/win9x/vmdisp9x
+          mkdir -p /tmp/vmdisp9x
+          wget "https://github.com/JHRobotics/vmdisp9x/releases/download/v1.2025.0.119/vmdisp9x-1.2025.0.119b-driver-2d.zip" -O /tmp/vmdisp9x.zip -q
+          unzip -q /tmp/vmdisp9x.zip -d /tmp/vmdisp9x
+
+          for file in \
+            license.txt \
+            qemumini.drv \
+            qemumini.vxd \
+            readme.txt \
+            version.txt \
+            vmdisp9x.dll \
+            vmdisp9x.inf \
+            vmhal486.dll \
+            vmhal9x.dll; do
+            source=$(find /tmp/vmdisp9x -type f -iname "$file" -print -quit)
+
+            if [ -z "$source" ]; then
+              echo "ERROR: VMDisp9x release is missing $file." >&2
+              exit 1
+            fi
+
+            sudo cp -L "$source" "/tmp/iso/win9x/vmdisp9x/$file"
+          done
+
+          rm -rf /tmp/vmdisp9x /tmp/vmdisp9x.zip
+
           # Do not let the legacy overlay reintroduce debug files or nested archives.
           sudo find /tmp/iso -type f \
             \( -iname '*.pdb' -o -iname 'legacy*.zip' \) \
@@ -655,7 +699,7 @@ jobs:
           base="${{ env.latest_base }}"
           owner="$(id -u):$(id -g)"
 
-          for folder in win9x sata; do
+          for folder in qbochs win9x sata; do
             if [ -d "/tmp/iso/$folder" ]; then
               sudo rm -rf "/tmp/$folder"
               sudo mv "/tmp/iso/$folder" "/tmp/$folder"
@@ -687,7 +731,7 @@ jobs:
             -czf "/tmp/virtio-win-${base}.tar.gz" \
             .
 
-          for folder in win9x sata; do
+          for folder in qbochs win9x sata; do
             if [ -d "/tmp/$folder" ]; then
               sudo mv "/tmp/$folder" "/tmp/iso/$folder"
             fi
