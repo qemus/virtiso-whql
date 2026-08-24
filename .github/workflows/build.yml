@@ -699,7 +699,7 @@ jobs:
           base="${{ env.latest_base }}"
           owner="$(id -u):$(id -g)"
 
-          for folder in qbochs win9x sata; do
+          for folder in qbochs win9x sata vmsvga; do
             if [ -d "/tmp/iso/$folder" ]; then
               sudo rm -rf "/tmp/$folder"
               sudo mv "/tmp/iso/$folder" "/tmp/$folder"
@@ -731,7 +731,7 @@ jobs:
             -czf "/tmp/virtio-win-${base}.tar.gz" \
             .
 
-          for folder in qbochs win9x sata; do
+          for folder in qbochs win9x sata vmsvga; do
             if [ -d "/tmp/$folder" ]; then
               sudo mv "/tmp/$folder" "/tmp/iso/$folder"
             fi
