@@ -295,6 +295,8 @@ jobs:
             license.txt \
             qemumini.drv \
             qemumini.vxd \
+            vmwsmini.drv \
+            vmwsmini.vxd \
             readme.txt \
             version.txt \
             vmdisp9x.dll \
