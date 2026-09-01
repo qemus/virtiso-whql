@@ -179,7 +179,7 @@ jobs:
           set -Eeuo pipefail
 
           sudo apt-get update
-          sudo apt-get install -y rdfind genisoimage libarchive-tools rpm unzip
+          sudo apt-get install -y rdfind genisoimage libarchive-tools rpm unzip zip
 
           rpm -qp --changelog /tmp/latest.rpm > /tmp/rpm-changelog
 
@@ -733,6 +733,11 @@ jobs:
             -czf "/tmp/virtio-win-${base}.tar.gz" \
             .
 
+          (
+            cd /tmp/iso
+            sudo zip -qr "/tmp/virtio-win-${base}.zip" .
+          )
+
           for folder in qbochs win9x sata vmsvga; do
             if [ -d "/tmp/$folder" ]; then
               sudo mv "/tmp/$folder" "/tmp/iso/$folder"
@@ -750,7 +755,8 @@ jobs:
           sudo chown "$owner" \
             "/tmp/virtio-win-${base}.iso" \
             "/tmp/virtio-win-${base}.tar.gz" \
-            "/tmp/virtio-win-${base}.tar.xz"
+            "/tmp/virtio-win-${base}.tar.xz" \
+            "/tmp/virtio-win-${base}.zip"
 
           chown "$owner" /tmp/virtio-win.iso
       -
