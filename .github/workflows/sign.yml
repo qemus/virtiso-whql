@@ -685,7 +685,6 @@ jobs:
               sign `
               /fd $target.Digest `
               /f $pfx `
-              /p '' `
               $cat
 
             if ($LASTEXITCODE -ne 0) {
