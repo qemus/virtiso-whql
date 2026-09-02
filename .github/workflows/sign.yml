@@ -151,7 +151,7 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: '${{ runner.temp }}\vmsvga-inf2cat26100'
-          key: inf2cat-wdk26100-10.0.26100.6584-windows-2022-v1
+          key: inf2cat-wdk26100-10.0.26100.6584-windows-2022-v2
 
       -
         name: Prepare Inf2Cat 26100 cache
@@ -174,6 +174,57 @@ jobs:
             }
 
             return $true
+          }
+
+          function Get-MsiFileNames {
+            param(
+              [Parameter(Mandatory = $true)][object]$Installer,
+              [Parameter(Mandatory = $true)][string]$Path
+            )
+
+            $database = $null
+            $view = $null
+            $record = $null
+            $names = @()
+
+            try {
+              $database = $Installer.OpenDatabase($Path, 0)
+              $view = $database.OpenView('SELECT `FileName` FROM `File`')
+              $view.Execute()
+
+              while ($true) {
+                $record = $view.Fetch()
+                if (-not $record) {
+                  break
+                }
+
+                $fileName = $record.StringData(1)
+                if (-not [string]::IsNullOrWhiteSpace($fileName)) {
+                  foreach ($name in ($fileName -split '\|')) {
+                    if (-not [string]::IsNullOrWhiteSpace($name)) {
+                      $names += $name
+                    }
+                  }
+                }
+
+                [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($record)
+                $record = $null
+              }
+
+              return $names
+            }
+            finally {
+              if ($record) {
+                [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($record)
+              }
+              if ($view) {
+                try { $view.Close() } catch {}
+                [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($view)
+              }
+              if ($database) {
+                [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($database)
+              }
+            }
           }
 
           $cache = Join-Path $env:RUNNER_TEMP 'vmsvga-inf2cat26100'
@@ -212,26 +263,67 @@ jobs:
             throw "Windows Driver Kit 26100 layout failed with exit code $($layout.ExitCode)."
           }
 
-          $msi = Get-ChildItem `
-            -Path $wdkLayout `
-            -Filter 'Windows Driver Kit Binaries-x86_en-us.msi' `
-            -File `
-            -Recurse |
-            Select-Object -First 1
-
-          if (-not $msi) {
-            throw 'Windows Driver Kit 26100 layout does not contain Windows Driver Kit Binaries-x86_en-us.msi.'
+          # Do not guess which modern WDK MSI contains Inf2Cat. Microsoft has moved
+          # tools between packages across WDK releases. Inspect the MSI File tables in
+          # the downloaded layout and let the layout itself tell us which package owns
+          # Inf2Cat.exe and WindowsProtectedFiles.xml.
+          $msis = @(Get-ChildItem -Path $wdkLayout -Filter '*.msi' -File -Recurse)
+          if ($msis.Count -eq 0) {
+            throw 'Windows Driver Kit 26100 layout contains no MSI packages.'
           }
 
-          Write-Host "Administrative-extracting driver tools from $($msi.FullName)."
-          $adminInstall = Start-Process `
-            -FilePath msiexec.exe `
-            -ArgumentList @('/a', "`"$($msi.FullName)`"", '/qn', "TARGETDIR=`"$wdkExtract`"") `
-            -Wait `
-            -PassThru
+          Write-Host "Inspecting $($msis.Count) WDK MSI File tables for Inf2Cat payloads."
+          $installer = New-Object -ComObject WindowsInstaller.Installer
+          $owners = @{}
 
-          if ($adminInstall.ExitCode -ne 0) {
-            throw "Windows Driver Kit 26100 extraction failed with exit code $($adminInstall.ExitCode)."
+          try {
+            foreach ($msi in $msis) {
+              try {
+                $fileNames = @(Get-MsiFileNames -Installer $installer -Path $msi.FullName)
+              }
+              catch {
+                Write-Warning "Could not inspect MSI $($msi.Name): $($_.Exception.Message)"
+                continue
+              }
+
+              foreach ($required in @('Inf2Cat.exe', 'WindowsProtectedFiles.xml')) {
+                if ($fileNames -contains $required) {
+                  Write-Host "Found $required in $($msi.FullName)"
+                  $owners[$required] = $msi.FullName
+                }
+              }
+            }
+          }
+          finally {
+            [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($installer)
+          }
+
+          foreach ($required in @('Inf2Cat.exe', 'WindowsProtectedFiles.xml')) {
+            if (-not $owners.ContainsKey($required)) {
+              Write-Host 'MSI packages present in the WDK layout:'
+              $msis | ForEach-Object { Write-Host "  $($_.FullName)" }
+              throw "Could not find $required in any WDK 26100 MSI File table."
+            }
+          }
+
+          $ownerMsis = @($owners.Values | Sort-Object -Unique)
+          foreach ($ownerMsi in $ownerMsis) {
+            $extractDir = Join-Path `
+              $wdkExtract `
+              ([System.IO.Path]::GetFileNameWithoutExtension($ownerMsi))
+
+            New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
+            Write-Host "Administrative-extracting payload owner: $ownerMsi"
+
+            $adminInstall = Start-Process `
+              -FilePath msiexec.exe `
+              -ArgumentList @('/a', "`"$ownerMsi`"", '/qn', "TARGETDIR=`"$extractDir`"") `
+              -Wait `
+              -PassThru
+
+            if ($adminInstall.ExitCode -ne 0) {
+              throw "WDK 26100 MSI extraction failed with exit code $($adminInstall.ExitCode): $ownerMsi"
+            }
           }
 
           $extractedInf2Cat = Get-ChildItem `
@@ -242,14 +334,29 @@ jobs:
             Select-Object -First 1
 
           if (-not $extractedInf2Cat) {
-            throw 'Inf2Cat.exe was not found in the extracted Windows Driver Kit 26100 package.'
+            throw 'The owning MSI was identified, but administrative extraction did not materialize Inf2Cat.exe.'
           }
 
           $toolDir = Split-Path -Parent $extractedInf2Cat.FullName
-          Write-Host "Found Inf2Cat 26100 toolset at: $toolDir"
+          Write-Host "Found extracted Inf2Cat 26100 toolset at: $toolDir"
           Copy-Item (Join-Path $toolDir '*') $cache -Recurse -Force
 
+          if (-not (Test-Path (Join-Path $cache 'WindowsProtectedFiles.xml'))) {
+            $protectedFiles = Get-ChildItem `
+              -Path $wdkExtract `
+              -Filter WindowsProtectedFiles.xml `
+              -File `
+              -Recurse |
+              Select-Object -First 1
+
+            if ($protectedFiles) {
+              Copy-Item $protectedFiles.FullName $cache -Force
+            }
+          }
+
           if (-not (Test-Inf2CatToolset -Directory $cache)) {
+            Write-Host 'Extracted Inf2Cat cache contents:'
+            Get-ChildItem -Path $cache -File | ForEach-Object { Write-Host "  $($_.Name)" }
             throw 'Extracted Windows Driver Kit 26100 Inf2Cat toolset is incomplete.'
           }
 
@@ -261,7 +368,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: '${{ runner.temp }}\vmsvga-inf2cat26100'
-          key: inf2cat-wdk26100-10.0.26100.6584-windows-2022-v1
+          key: inf2cat-wdk26100-10.0.26100.6584-windows-2022-v2
 
       -
         name: Regenerate and sign catalogs
