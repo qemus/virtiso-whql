@@ -481,7 +481,7 @@ jobs:
             }
 
             if ($signerInfo.DigestAlgorithm.Value -ne $expectedDigestOid) {
-              throw "Catalog signature digest does not match $Digest: $Path"
+              throw "Catalog signature digest does not match ${Digest}: $Path"
             }
           }
 
