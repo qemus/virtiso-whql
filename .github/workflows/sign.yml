@@ -489,46 +489,19 @@ jobs:
             param(
               [Parameter(Mandatory = $true)][string]$FilePath,
               [Parameter(Mandatory = $true)][string]$DriverDirectory,
-              [Parameter(Mandatory = $true)][string]$OperatingSystems,
-              [int]$TimeoutSeconds = 180
+              [Parameter(Mandatory = $true)][string]$OperatingSystems
             )
 
-            $stdout = Join-Path $env:RUNNER_TEMP ("inf2cat-{0}.out" -f [guid]::NewGuid())
-            $stderr = Join-Path $env:RUNNER_TEMP ("inf2cat-{0}.err" -f [guid]::NewGuid())
+            # Match the proven QBochs workflow: invoke the native tool directly and
+            # read its native process result through $LASTEXITCODE.
+            & $FilePath `
+              "/driver:$DriverDirectory" `
+              "/os:$OperatingSystems" `
+              '/uselocaltime' `
+              '/verbose'
 
-            try {
-              $process = Start-Process `
-                -FilePath $FilePath `
-                -ArgumentList @(
-                  "/driver:$DriverDirectory",
-                  "/os:$OperatingSystems",
-                  '/uselocaltime',
-                  '/verbose'
-                ) `
-                -NoNewWindow `
-                -PassThru `
-                -RedirectStandardOutput $stdout `
-                -RedirectStandardError $stderr
-
-              if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
-                Write-Host "Inf2Cat exceeded ${TimeoutSeconds}s; terminating PID $($process.Id)."
-                & taskkill.exe /PID $process.Id /T /F | Out-Host
-                throw "Inf2Cat timed out for $DriverDirectory /os:$OperatingSystems."
-              }
-
-              if (Test-Path $stdout) {
-                Get-Content -Path $stdout | ForEach-Object { Write-Host $_ }
-              }
-              if (Test-Path $stderr) {
-                Get-Content -Path $stderr | ForEach-Object { Write-Host $_ }
-              }
-
-              if ($process.ExitCode -ne 0) {
-                throw "Inf2Cat failed for $DriverDirectory with exit code $($process.ExitCode)."
-              }
-            }
-            finally {
-              Remove-Item -Path $stdout, $stderr -Force -ErrorAction SilentlyContinue
+            if ($LASTEXITCODE -ne 0) {
+              throw "Inf2Cat failed for $DriverDirectory with exit code $LASTEXITCODE."
             }
           }
 
@@ -692,19 +665,20 @@ jobs:
               $modernInf2Cat
             }
 
+            # The final CER is part of the driver directory and Inf2Cat hashes it.
+            # Put the final Dockur certificate in place before catalog generation.
+            Copy-Item -Path $publicCer -Destination $cer -Force
+
             Write-Step "BEGIN $($target.Dir): Inf2Cat /os:$($target.Os)"
             Invoke-Inf2Cat `
               -FilePath $inf2cat `
               -DriverDirectory $dir `
-              -OperatingSystems $target.Os `
-              -TimeoutSeconds 180
+              -OperatingSystems $target.Os
             Write-Step "END $($target.Dir): Inf2Cat completed."
 
             if (-not (Test-Path $cat)) {
               throw "Inf2Cat did not create expected catalog: $cat"
             }
-
-            Copy-Item -Path $publicCer -Destination $cer -Force
 
             Write-Step "Signing $($target.Dir)\$catalogName with $($target.Digest)."
             & $signtool `
