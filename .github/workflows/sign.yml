@@ -608,7 +608,7 @@ jobs:
             @{ Dir = 'w8\amd64';     Tool = 'legacy'; Os = '8_X64';               Digest = 'SHA256' },
             @{ Dir = '2k12\amd64';   Tool = 'legacy'; Os = 'Server8_X64';         Digest = 'SHA256' },
             @{ Dir = 'w8.1\amd64';   Tool = 'legacy'; Os = '6_3_X64';             Digest = 'SHA256' },
-            @{ Dir = '2k12R2\amd64'; Tool = 'legacy'; Os = 'SERVER_6_3_X64';      Digest = 'SHA256' },
+            @{ Dir = '2k12R2\amd64'; Tool = 'legacy'; Os = 'SERVER6_3_X64';       Digest = 'SHA256' },
             @{ Dir = 'w10\amd64';    Tool = 'modern'; Os = '10_X64';              Digest = 'SHA256' },
             @{ Dir = '2k16\amd64';   Tool = 'modern'; Os = 'SERVER2016_X64';      Digest = 'SHA256' },
             @{ Dir = '2k19\amd64';   Tool = 'modern'; Os = 'ServerRS5_X64';       Digest = 'SHA256' },
