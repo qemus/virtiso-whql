@@ -1,0 +1,502 @@
+name: Build signed legacy drivers
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: legacy-driver-signing
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write
+
+env:
+  LEGACY_URL: https://github.com/qemus/virtiso-whql/releases/download/v1.9.40-0/legacy.zip
+  SIGNING_THUMBPRINT: 3E7605543CDCEB4B60244A851DBB29D11B5FF615
+
+jobs:
+  sign:
+    name: Regenerate and sign catalogs
+    runs-on: windows-2022
+
+    steps:
+      -
+        name: Restore Inf2Cat 8.1 cache
+        id: cache-inf2cat81
+        uses: actions/cache/restore@v6
+        with:
+          path: '${{ runner.temp }}\vmsvga-inf2cat81'
+          key: inf2cat-wdk81-8.100.25984.0-windows-2022-v2
+
+      -
+        name: Prepare Inf2Cat 8.1 cache
+        if: steps.cache-inf2cat81.outputs.cache-hit != 'true'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+
+          function Test-Inf2CatToolset {
+            param([Parameter(Mandatory = $true)][string]$Directory)
+
+            foreach ($file in @(
+              'Inf2Cat.exe',
+              'inf2cat.exe.manifest',
+              'Microsoft.Whos.Shared.IO.Cabinets.dll',
+              'Microsoft.Whos.Shared.IO.Catalogs.dll',
+              'Microsoft.Whos.Shared.Xml.InfReader.dll',
+              'Microsoft.Whos.Winqual.Submissions.SubmissionBuilder.dll',
+              'Microsoft.Whos.Xml.NonXmlDataReader.dll',
+              'WindowsProtectedFiles.xml'
+            )) {
+              if (-not (Test-Path (Join-Path $Directory $file))) {
+                return $false
+              }
+            }
+
+            return $true
+          }
+
+          $cache = Join-Path $env:RUNNER_TEMP 'vmsvga-inf2cat81'
+          if (Test-Inf2CatToolset -Directory $cache) {
+            Write-Host "Using existing Inf2Cat 8.1 toolset: $cache"
+            exit 0
+          }
+
+          if (Test-Path $cache) {
+            Remove-Item $cache -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $cache | Out-Null
+
+          $wdkRoot = Join-Path $env:RUNNER_TEMP 'wdk81'
+          $wdkLayout = Join-Path $wdkRoot 'layout'
+          $wdkExtract = Join-Path $wdkRoot 'extract'
+          $wdkSetup = Join-Path $wdkRoot 'wdksetup.exe'
+          $wdkSetupUrl = 'https://download.microsoft.com/download/8/6/9/86925F0F-D57A-4BA4-8278-861B6876D78E/wdk/wdksetup.exe'
+
+          if (Test-Path $wdkRoot) {
+            Remove-Item $wdkRoot -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $wdkRoot, $wdkLayout, $wdkExtract | Out-Null
+
+          Write-Host 'Downloading the Windows Driver Kit 8.1 bootstrapper.'
+          Invoke-WebRequest -Uri $wdkSetupUrl -OutFile $wdkSetup -UseBasicParsing
+
+          Write-Host 'Preparing the Windows Driver Kit 8.1 layout.'
+          $layout = Start-Process `
+            -FilePath $wdkSetup `
+            -ArgumentList @('/layout', "`"$wdkLayout`"", '/quiet', '/norestart') `
+            -Wait `
+            -PassThru
+
+          if ($layout.ExitCode -ne 0) {
+            throw "Windows Driver Kit 8.1 layout failed with exit code $($layout.ExitCode)."
+          }
+
+          $msi = Get-ChildItem `
+            -Path $wdkLayout `
+            -Filter 'Windows Driver Kit-x86_en-us.msi' `
+            -File `
+            -Recurse |
+            Select-Object -First 1
+
+          if (-not $msi) {
+            throw 'Windows Driver Kit 8.1 layout does not contain Windows Driver Kit-x86_en-us.msi.'
+          }
+
+          Write-Host "Extracting driver tools from $($msi.FullName)."
+          $adminInstall = Start-Process `
+            -FilePath msiexec.exe `
+            -ArgumentList @('/a', "`"$($msi.FullName)`"", '/qn', "TARGETDIR=`"$wdkExtract`"") `
+            -Wait `
+            -PassThru
+
+          if ($adminInstall.ExitCode -ne 0) {
+            throw "Windows Driver Kit 8.1 extraction failed with exit code $($adminInstall.ExitCode)."
+          }
+
+          $extractedInf2Cat = Get-ChildItem `
+            -Path $wdkExtract `
+            -Filter Inf2Cat.exe `
+            -File `
+            -Recurse |
+            Select-Object -First 1
+
+          if (-not $extractedInf2Cat) {
+            throw 'Inf2Cat.exe was not found in the Windows Driver Kit 8.1 package.'
+          }
+
+          $toolDir = Split-Path -Parent $extractedInf2Cat.FullName
+          Copy-Item (Join-Path $toolDir '*') $cache -Recurse -Force
+
+          if (-not (Test-Inf2CatToolset -Directory $cache)) {
+            throw 'Extracted Windows Driver Kit 8.1 Inf2Cat toolset is incomplete.'
+          }
+
+          Write-Host "Inf2Cat 8.1 toolset prepared: $cache"
+
+      -
+        name: Save Inf2Cat 8.1 cache
+        if: steps.cache-inf2cat81.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: '${{ runner.temp }}\vmsvga-inf2cat81'
+          key: inf2cat-wdk81-8.100.25984.0-windows-2022-v2
+
+      -
+        name: Regenerate and sign catalogs
+        shell: powershell
+        env:
+          SIGNATURE: ${{ secrets.SIGNATURE }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+
+          function Write-Step {
+            param([Parameter(Mandatory = $true)][string]$Message)
+            Write-Host ("[{0:HH:mm:ss.fff}] {1}" -f (Get-Date), $Message)
+          }
+
+          function Get-ImmutableManifest {
+            param(
+              [Parameter(Mandatory = $true)][string]$Root,
+              [Parameter(Mandatory = $true)][string]$VmsvgaRoot
+            )
+
+            $manifest = @{}
+            foreach ($file in Get-ChildItem -Path $Root -File -Recurse) {
+              $isMutableVmsvgaFile = `
+                $file.FullName.StartsWith($VmsvgaRoot, [System.StringComparison]::OrdinalIgnoreCase) -and `
+                @('.cat', '.cer') -contains $file.Extension.ToLowerInvariant()
+
+              if ($isMutableVmsvgaFile) {
+                continue
+              }
+
+              $relative = $file.FullName.Substring($Root.Length).TrimStart('\')
+              $manifest[$relative] = (Get-FileHash -Algorithm SHA256 -Path $file.FullName).Hash
+            }
+
+            return $manifest
+          }
+
+          function Compare-Manifests {
+            param(
+              [Parameter(Mandatory = $true)][hashtable]$Before,
+              [Parameter(Mandatory = $true)][hashtable]$After
+            )
+
+            $allPaths = @($Before.Keys + $After.Keys | Sort-Object -Unique)
+            $differences = @()
+
+            foreach ($path in $allPaths) {
+              if (-not $Before.ContainsKey($path)) {
+                $differences += "ADDED: $path"
+              }
+              elseif (-not $After.ContainsKey($path)) {
+                $differences += "REMOVED: $path"
+              }
+              elseif ($Before[$path] -ne $After[$path]) {
+                $differences += "CHANGED: $path"
+              }
+            }
+
+            if ($differences.Count -gt 0) {
+              $differences | ForEach-Object { Write-Host $_ }
+              throw 'Files other than vmsvga CAT/CER files changed.'
+            }
+          }
+
+          if ([string]::IsNullOrWhiteSpace($env:SIGNATURE)) {
+            throw 'Repository secret SIGNATURE is not configured.'
+          }
+
+          $work = Join-Path $env:RUNNER_TEMP 'vmsvga-sign'
+          $sourceZip = Join-Path $work 'legacy-source.zip'
+          $packageRoot = Join-Path $work 'package'
+          $outputRoot = Join-Path $PWD 'output'
+          $outputZip = Join-Path $outputRoot 'legacy.zip'
+          $report = Join-Path $outputRoot 'signing-report.txt'
+
+          if (Test-Path $work) {
+            Remove-Item $work -Recurse -Force
+          }
+          if (Test-Path $outputRoot) {
+            Remove-Item $outputRoot -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $work, $packageRoot, $outputRoot | Out-Null
+
+          Write-Step "Downloading source archive: $env:LEGACY_URL"
+          Invoke-WebRequest -Uri $env:LEGACY_URL -OutFile $sourceZip -UseBasicParsing
+
+          Write-Step 'Extracting legacy.zip.'
+          & 7z.exe x $sourceZip "-o$packageRoot" -y | Out-Host
+          if ($LASTEXITCODE -ne 0) {
+            throw "7-Zip extraction failed with exit code $LASTEXITCODE."
+          }
+
+          $vmsvgaRoot = Join-Path $packageRoot 'vmsvga'
+          if (-not (Test-Path $vmsvgaRoot)) {
+            throw "Source archive does not contain expected directory: $vmsvgaRoot"
+          }
+
+          $baseline = Get-ImmutableManifest -Root $packageRoot -VmsvgaRoot $vmsvgaRoot
+          Write-Step "Recorded $($baseline.Count) immutable source files."
+
+          $pfx = Join-Path $work 'signing.pfx'
+          [System.IO.File]::WriteAllBytes(
+            $pfx,
+            [System.Convert]::FromBase64String($env:SIGNATURE)
+          )
+
+          $flags = [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable `
+            -bor [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet
+          $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
+            $pfx,
+            '',
+            $flags
+          )
+
+          if (-not $cert.HasPrivateKey) {
+            throw 'Signing PFX does not contain a private key.'
+          }
+
+          if ($cert.Thumbprint -ne $env:SIGNING_THUMBPRINT) {
+            throw "Wrong signing certificate. Expected $env:SIGNING_THUMBPRINT, got $($cert.Thumbprint)."
+          }
+
+          $publicCer = Join-Path $work 'signing.cer'
+          [System.IO.File]::WriteAllBytes(
+            $publicCer,
+            $cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
+          )
+          Write-Step "Using signing certificate $($cert.Thumbprint))."
+
+          # Trust the self-signed certificate only inside this ephemeral runner so SignTool
+          # can validate the catalogs after signing them.
+          Import-Certificate -FilePath $publicCer -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
+          Import-Certificate -FilePath $publicCer -CertStoreLocation 'Cert:\CurrentUser\TrustedPublisher' | Out-Null
+
+          $legacyInf2Cat = Join-Path $env:RUNNER_TEMP 'vmsvga-inf2cat81\Inf2Cat.exe'
+          if (-not (Test-Path $legacyInf2Cat)) {
+            throw "Missing cached WDK 8.1 Inf2Cat: $legacyInf2Cat"
+          }
+
+          # windows-2022 currently carries the WDK 10.0.26100 toolset. Discover the
+          # newest x86 Inf2Cat and x64 SignTool instead of hard-coding the patch level.
+          $modernInf2Cat = Get-ChildItem `
+            -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
+            -Filter Inf2Cat.exe `
+            -File `
+            -Recurse |
+            Where-Object { $_.FullName -match '\\x86\\Inf2Cat\.exe$' } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+
+          if (-not $modernInf2Cat) {
+            throw 'The GitHub Windows runner does not contain a modern WDK Inf2Cat.exe.'
+          }
+
+          $signtool = Get-ChildItem `
+            -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
+            -Filter signtool.exe `
+            -File `
+            -Recurse |
+            Where-Object { $_.FullName -match '\\x64\\signtool\.exe$' } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+
+          if (-not $signtool) {
+            throw 'The GitHub Windows runner does not contain signtool.exe.'
+          }
+
+          Write-Step "Legacy Inf2Cat: $legacyInf2Cat"
+          Write-Step "Modern Inf2Cat: $($modernInf2Cat.FullName)"
+          Write-Step "SignTool: $($signtool.FullName)"
+
+          # WDK 8.1 is used for the pre-Windows-10 targets because it retains the old
+          # 2000/XP/2003 OS identifiers. The runner's current WDK handles NT 10.0 targets.
+          # SHA-1/SHA-256 signing follows the digest family used by the original VMware CATs.
+          $targets = @(
+            @{ Dir = '2k\x86';       Tool = 'legacy'; Os = '2000';                Digest = 'SHA1'   },
+            @{ Dir = 'xp\x86';       Tool = 'legacy'; Os = 'XP_X86';              Digest = 'SHA1'   },
+            @{ Dir = 'xp\amd64';     Tool = 'legacy'; Os = 'XP_X64';              Digest = 'SHA1'   },
+            @{ Dir = '2k3\x86';      Tool = 'legacy'; Os = 'Server2003_X86';      Digest = 'SHA1'   },
+            @{ Dir = '2k3\amd64';    Tool = 'legacy'; Os = 'Server2003_X64';      Digest = 'SHA1'   },
+            @{ Dir = '2k8\x86';      Tool = 'legacy'; Os = 'Server2008_X86';      Digest = 'SHA1'   },
+            @{ Dir = '2k8\amd64';    Tool = 'legacy'; Os = 'Server2008_X64';      Digest = 'SHA1'   },
+            @{ Dir = 'w7\x86';       Tool = 'legacy'; Os = '7_X86';               Digest = 'SHA256' },
+            @{ Dir = 'w7\amd64';     Tool = 'legacy'; Os = '7_X64';               Digest = 'SHA256' },
+            @{ Dir = '2k8R2\amd64';  Tool = 'legacy'; Os = 'Server2008R2_X64';    Digest = 'SHA256' },
+            @{ Dir = 'w8\amd64';     Tool = 'legacy'; Os = '8_X64';               Digest = 'SHA256' },
+            @{ Dir = '2k12\amd64';   Tool = 'legacy'; Os = 'Server8_X64';         Digest = 'SHA256' },
+            @{ Dir = 'w8.1\amd64';   Tool = 'legacy'; Os = '6_3_X64';             Digest = 'SHA256' },
+            @{ Dir = '2k12R2\amd64'; Tool = 'legacy'; Os = 'SERVER_6_3_X64';      Digest = 'SHA256' },
+            @{ Dir = 'w10\amd64';    Tool = 'modern'; Os = '10_X64';              Digest = 'SHA256' },
+            @{ Dir = '2k16\amd64';   Tool = 'modern'; Os = 'SERVER2016_X64';      Digest = 'SHA256' },
+            @{ Dir = '2k19\amd64';   Tool = 'modern'; Os = 'ServerRS5_X64';       Digest = 'SHA256' },
+            @{ Dir = '2k22\amd64';   Tool = 'modern'; Os = 'ServerFE_X64';        Digest = 'SHA256' },
+            @{ Dir = 'w11\amd64';    Tool = 'modern'; Os = '10_CO_X64,10_NI_X64,10_GE_X64,10_25H2_X64'; Digest = 'SHA256' },
+            @{ Dir = '2k25\amd64';   Tool = 'modern'; Os = 'Server2025_X64';      Digest = 'SHA256' }
+          )
+
+          $reportLines = @(
+            'Catalog regeneration report',
+            "Source: $env:LEGACY_URL",
+            "Certificate: $($cert.Subject)",
+            "Certificate thumbprint: $($cert.Thumbprint)",
+            "Legacy Inf2Cat: $legacyInf2Cat",
+            "Modern Inf2Cat: $($modernInf2Cat.FullName)",
+            "SignTool: $($signtool.FullName)",
+            ''
+          )
+
+          foreach ($target in $targets) {
+            $dir = Join-Path $vmsvgaRoot $target.Dir
+            if (-not (Test-Path $dir)) {
+              throw "Expected VMware driver directory is missing: $($target.Dir)"
+            }
+
+            $infs = @(Get-ChildItem -Path $dir -Filter '*.inf' -File)
+            if ($infs.Count -ne 1) {
+              throw "Expected exactly one INF in $($target.Dir), found $($infs.Count)."
+            }
+            $inf = $infs[0]
+
+            $infText = Get-Content -Path $inf.FullName -Raw
+            $catalogMatch = [regex]::Match(
+              $infText,
+              '(?im)^\s*CatalogFile(?:\.[^=\s]+)?\s*=\s*([^;\r\n]+)'
+            )
+            if (-not $catalogMatch.Success) {
+              throw "INF has no CatalogFile directive: $($inf.FullName)"
+            }
+
+            $catalogName = $catalogMatch.Groups[1].Value.Trim()
+            $cat = Join-Path $dir $catalogName
+            $baseName = [System.IO.Path]::GetFileNameWithoutExtension($inf.Name)
+            $cer = Join-Path $dir ($baseName + '.cer')
+
+            if (Test-Path $cat) {
+              Remove-Item $cat -Force
+            }
+
+            $inf2cat = if ($target.Tool -eq 'legacy') {
+              $legacyInf2Cat
+            }
+            else {
+              $modernInf2Cat.FullName
+            }
+
+            Write-Step "Inf2Cat $($target.Dir) /os:$($target.Os)"
+            & $inf2cat `
+              "/driver:$dir" `
+              "/os:$($target.Os)" `
+              '/uselocaltime' `
+              '/verbose'
+
+            if ($LASTEXITCODE -ne 0) {
+              throw "Inf2Cat failed for $($target.Dir) with exit code $LASTEXITCODE."
+            }
+            if (-not (Test-Path $cat)) {
+              throw "Inf2Cat did not create expected catalog: $cat"
+            }
+
+            Copy-Item -Path $publicCer -Destination $cer -Force
+
+            Write-Step "Signing $($target.Dir)\$catalogName with $($target.Digest)."
+            & $signtool.FullName `
+              sign `
+              /fd $target.Digest `
+              /f $pfx `
+              /p '' `
+              $cat
+
+            if ($LASTEXITCODE -ne 0) {
+              throw "SignTool failed for $cat with exit code $LASTEXITCODE."
+            }
+
+            # Verify the catalog's Authenticode signature.
+            & $signtool.FullName verify /pa /v $cat
+            if ($LASTEXITCODE -ne 0) {
+              throw "Catalog signature verification failed: $cat"
+            }
+
+            # Most importantly, verify every package payload file against the newly
+            # generated catalog. This explicitly tests the membership lookup that failed
+            # in Windows 7 with the earlier hand-edited catalogs.
+            foreach ($member in Get-ChildItem -Path $dir -File | Where-Object {
+              $_.Extension.ToLowerInvariant() -notin @('.cat', '.cer')
+            }) {
+              & $signtool.FullName verify /pa /c $cat /v $member.FullName
+              if ($LASTEXITCODE -ne 0) {
+                throw "Catalog membership verification failed: $($member.FullName)"
+              }
+            }
+
+            $catalogHash = (Get-FileHash -Algorithm SHA256 -Path $cat).Hash.ToLowerInvariant()
+            $reportLines += (
+              '{0} | os={1} | tool={2} | signature={3} | cat-sha256={4}' -f
+                $target.Dir,
+                $target.Os,
+                $target.Tool,
+                $target.Digest,
+                $catalogHash
+            )
+          }
+
+          # Make sure no INF, SYS, DLL, EXE, or any non-VMSVGA file changed.
+          $after = Get-ImmutableManifest -Root $packageRoot -VmsvgaRoot $vmsvgaRoot
+          Compare-Manifests -Before $baseline -After $after
+          Write-Step 'Immutable-file verification passed.'
+
+          # Make sure every target now contains its matching CER and CAT.
+          foreach ($target in $targets) {
+            $dir = Join-Path $vmsvgaRoot $target.Dir
+            $inf = Get-ChildItem -Path $dir -Filter '*.inf' -File | Select-Object -First 1
+            $baseName = [System.IO.Path]::GetFileNameWithoutExtension($inf.Name)
+            $catalogMatch = [regex]::Match(
+              (Get-Content -Path $inf.FullName -Raw),
+              '(?im)^\s*CatalogFile(?:\.[^=\s]+)?\s*=\s*([^;\r\n]+)'
+            )
+            $cat = Join-Path $dir $catalogMatch.Groups[1].Value.Trim()
+            $cer = Join-Path $dir ($baseName + '.cer')
+
+            if (-not (Test-Path $cat) -or -not (Test-Path $cer)) {
+              throw "Incomplete signed package: $($target.Dir)"
+            }
+          }
+
+          $reportLines | Set-Content -Path $report -Encoding UTF8
+
+          if (Test-Path $outputZip) {
+            Remove-Item $outputZip -Force
+          }
+
+          Write-Step 'Creating output legacy.zip.'
+          Push-Location $packageRoot
+          try {
+            & 7z.exe a -tzip $outputZip '.\*' -mx=9 | Out-Host
+            if ($LASTEXITCODE -ne 0) {
+              throw "7-Zip archive creation failed with exit code $LASTEXITCODE."
+            }
+          }
+          finally {
+            Pop-Location
+          }
+
+          $outputHash = (Get-FileHash -Algorithm SHA256 -Path $outputZip).Hash.ToLowerInvariant()
+          Add-Content -Path $report -Value "`nOutput legacy.zip SHA-256: $outputHash"
+          Write-Step "Output SHA-256: $outputHash"
+
+      -
+        name: Upload signed legacy archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: legacy-inf2cat-signed
+          path: |
+            output/legacy.zip
+            output/signing-report.txt
+          if-no-files-found: error
+          retention-days: 7
