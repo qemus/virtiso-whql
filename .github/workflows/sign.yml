@@ -17,7 +17,7 @@ env:
 
 jobs:
   sign:
-    name: Regenerate and sign catalogs
+    name: Sign catalogs
     runs-on: windows-2022
     timeout-minutes: 30
 
@@ -146,6 +146,124 @@ jobs:
           key: inf2cat-wdk81-8.100.25984.0-windows-2022-v2
 
       -
+        name: Restore Inf2Cat 26100 cache
+        id: cache-inf2cat26100
+        uses: actions/cache/restore@v6
+        with:
+          path: '${{ runner.temp }}\vmsvga-inf2cat26100'
+          key: inf2cat-wdk26100-10.0.26100.6584-windows-2022-v1
+
+      -
+        name: Prepare Inf2Cat 26100 cache
+        if: steps.cache-inf2cat26100.outputs.cache-hit != 'true'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+
+          function Test-Inf2CatToolset {
+            param([Parameter(Mandatory = $true)][string]$Directory)
+
+            foreach ($file in @(
+              'Inf2Cat.exe',
+              'WindowsProtectedFiles.xml'
+            )) {
+              if (-not (Test-Path (Join-Path $Directory $file))) {
+                return $false
+              }
+            }
+
+            return $true
+          }
+
+          $cache = Join-Path $env:RUNNER_TEMP 'vmsvga-inf2cat26100'
+          if (Test-Inf2CatToolset -Directory $cache) {
+            Write-Host "Using existing Inf2Cat 26100 toolset: $cache"
+            exit 0
+          }
+
+          if (Test-Path $cache) {
+            Remove-Item $cache -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $cache | Out-Null
+
+          $wdkRoot = Join-Path $env:RUNNER_TEMP 'wdk26100'
+          $wdkLayout = Join-Path $wdkRoot 'layout'
+          $wdkExtract = Join-Path $wdkRoot 'extract'
+          $wdkSetup = Join-Path $wdkRoot 'wdksetup.exe'
+          $wdkSetupUrl = 'https://download.microsoft.com/download/41fb59c2-1723-45f9-a270-96b73ad58233/KIT_BUNDLE_WDK_MEDIACREATION/wdksetup.exe'
+
+          if (Test-Path $wdkRoot) {
+            Remove-Item $wdkRoot -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $wdkRoot, $wdkLayout, $wdkExtract | Out-Null
+
+          Write-Host 'Downloading the Windows Driver Kit 26100 bootstrapper.'
+          Invoke-WebRequest -Uri $wdkSetupUrl -OutFile $wdkSetup -UseBasicParsing
+
+          Write-Host 'Preparing the Windows Driver Kit 26100 layout without installing it.'
+          $layout = Start-Process `
+            -FilePath $wdkSetup `
+            -ArgumentList @('/layout', "`"$wdkLayout`"", '/quiet', '/norestart') `
+            -Wait `
+            -PassThru
+
+          if ($layout.ExitCode -ne 0) {
+            throw "Windows Driver Kit 26100 layout failed with exit code $($layout.ExitCode)."
+          }
+
+          $msi = Get-ChildItem `
+            -Path $wdkLayout `
+            -Filter 'Windows Driver Kit-x86_en-us.msi' `
+            -File `
+            -Recurse |
+            Select-Object -First 1
+
+          if (-not $msi) {
+            throw 'Windows Driver Kit 26100 layout does not contain Windows Driver Kit-x86_en-us.msi.'
+          }
+
+          Write-Host "Administrative-extracting driver tools from $($msi.FullName)."
+          $adminInstall = Start-Process `
+            -FilePath msiexec.exe `
+            -ArgumentList @('/a', "`"$($msi.FullName)`"", '/qn', "TARGETDIR=`"$wdkExtract`"") `
+            -Wait `
+            -PassThru
+
+          if ($adminInstall.ExitCode -ne 0) {
+            throw "Windows Driver Kit 26100 extraction failed with exit code $($adminInstall.ExitCode)."
+          }
+
+          $extractedInf2Cat = Get-ChildItem `
+            -Path $wdkExtract `
+            -Filter Inf2Cat.exe `
+            -File `
+            -Recurse |
+            Select-Object -First 1
+
+          if (-not $extractedInf2Cat) {
+            throw 'Inf2Cat.exe was not found in the extracted Windows Driver Kit 26100 package.'
+          }
+
+          $toolDir = Split-Path -Parent $extractedInf2Cat.FullName
+          Write-Host "Found Inf2Cat 26100 toolset at: $toolDir"
+          Copy-Item (Join-Path $toolDir '*') $cache -Recurse -Force
+
+          if (-not (Test-Inf2CatToolset -Directory $cache)) {
+            throw 'Extracted Windows Driver Kit 26100 Inf2Cat toolset is incomplete.'
+          }
+
+          Write-Host "Inf2Cat 26100 toolset prepared: $cache"
+
+      -
+        name: Save Inf2Cat 26100 cache
+        if: steps.cache-inf2cat26100.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: '${{ runner.temp }}\vmsvga-inf2cat26100'
+          key: inf2cat-wdk26100-10.0.26100.6584-windows-2022-v1
+
+      -
         name: Regenerate and sign catalogs
         shell: powershell
         timeout-minutes: 20
@@ -210,42 +328,38 @@ jobs:
             }
           }
 
-          function Get-LatestWindowsKitTool {
-            param(
-              [Parameter(Mandatory = $true)][string]$Architecture,
-              [Parameter(Mandatory = $true)][string]$Name
-            )
-
-            $binRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
-            if (-not (Test-Path $binRoot)) {
-              throw "Windows Kits bin directory is missing: $binRoot"
+          function Find-SignTool {
+            $fromPath = Get-Command signtool.exe -ErrorAction SilentlyContinue
+            if ($fromPath) {
+              return $fromPath.Source
             }
 
-            $candidates = @()
-            foreach ($directory in Get-ChildItem -Path $binRoot -Directory) {
-              $version = $null
-              if (-not [version]::TryParse($directory.Name, [ref]$version)) {
+            foreach ($root in @(
+              "${env:ProgramFiles(x86)}\Windows Kits\10\bin",
+              "$env:ProgramFiles\Windows Kits\10\bin"
+            )) {
+              if (-not (Test-Path $root)) {
                 continue
               }
 
-              $candidate = Join-Path $directory.FullName "$Architecture\$Name"
-              if (Test-Path $candidate) {
-                $candidates += [pscustomobject]@{
-                  Version = $version
-                  Path = $candidate
-                }
+              $versioned = Get-ChildItem `
+                -Path (Join-Path $root '*\x64\signtool.exe') `
+                -File `
+                -ErrorAction SilentlyContinue |
+                Sort-Object FullName -Descending |
+                Select-Object -First 1
+
+              if ($versioned) {
+                return $versioned.FullName
+              }
+
+              $unversioned = Join-Path $root 'x64\signtool.exe'
+              if (Test-Path $unversioned) {
+                return $unversioned
               }
             }
 
-            $selected = $candidates |
-              Sort-Object Version -Descending |
-              Select-Object -First 1
-
-            if (-not $selected) {
-              throw "Could not locate $Name for $Architecture in $binRoot."
-            }
-
-            return $selected.Path
+            return $null
           }
 
           function Invoke-Inf2Cat {
@@ -370,14 +484,20 @@ jobs:
             throw "Missing cached WDK 8.1 Inf2Cat: $legacyInf2Cat"
           }
 
-          # Do not install or recursively scan an SDK/WDK here. The hosted Windows runner
-          # already contains a current Windows Kits toolset. Only inspect its immediate
-          # version directories and select the newest existing binary.
-          $modernInf2Cat = Get-LatestWindowsKitTool -Architecture 'x86' -Name 'Inf2Cat.exe'
-          $signtool = Get-LatestWindowsKitTool -Architecture 'x64' -Name 'signtool.exe'
+          $modernInf2Cat = Join-Path $env:RUNNER_TEMP 'vmsvga-inf2cat26100\Inf2Cat.exe'
+          if (-not (Test-Path $modernInf2Cat)) {
+            throw "Missing cached WDK 26100 Inf2Cat: $modernInf2Cat"
+          }
+
+          # SignTool is already available on the hosted runner and does not require
+          # launching or installing the SDK. Match the proven qemu-bochs lookup.
+          $signtool = Find-SignTool
+          if (-not $signtool) {
+            throw 'SignTool.exe was not found.'
+          }
 
           Write-Step "Legacy Inf2Cat: $legacyInf2Cat"
-          Write-Step "Modern Inf2Cat: $modernInf2Cat"
+          Write-Step "Modern Inf2Cat (extracted): $modernInf2Cat"
           Write-Step "SignTool: $signtool"
 
           # WDK 8.1 is used for targets through Windows 8.1/Server 2012 R2 because it
@@ -413,7 +533,7 @@ jobs:
             "Certificate: $($cert.Subject)",
             "Certificate thumbprint: $($cert.Thumbprint)",
             "Legacy Inf2Cat: $legacyInf2Cat",
-            "Modern Inf2Cat: $modernInf2Cat",
+            "Modern Inf2Cat (extracted): $modernInf2Cat",
             "SignTool: $signtool",
             ''
           )
