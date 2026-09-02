@@ -214,13 +214,13 @@ jobs:
 
           $msi = Get-ChildItem `
             -Path $wdkLayout `
-            -Filter 'Windows Driver Kit-x86_en-us.msi' `
+            -Filter 'Windows Driver Kit Binaries-x86_en-us.msi' `
             -File `
             -Recurse |
             Select-Object -First 1
 
           if (-not $msi) {
-            throw 'Windows Driver Kit 26100 layout does not contain Windows Driver Kit-x86_en-us.msi.'
+            throw 'Windows Driver Kit 26100 layout does not contain Windows Driver Kit Binaries-x86_en-us.msi.'
           }
 
           Write-Host "Administrative-extracting driver tools from $($msi.FullName)."
@@ -675,7 +675,7 @@ jobs:
           Write-Step "Output SHA-256: $outputHash"
 
       -
-        name: Upload signed legacy archive
+        name: Upload signed archive
         uses: actions/upload-artifact@v7
         with:
           name: legacy-inf2cat-signed
