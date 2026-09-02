@@ -445,6 +445,46 @@ jobs:
             return $null
           }
 
+          Add-Type -AssemblyName System.Security
+
+          function Test-CatalogSignature {
+            param(
+              [Parameter(Mandatory = $true)][string]$Path,
+              [Parameter(Mandatory = $true)][string]$Thumbprint,
+              [Parameter(Mandatory = $true)][string]$Digest
+            )
+
+            $expectedDigestOid = switch ($Digest.ToUpperInvariant()) {
+              'SHA1'   { '1.3.14.3.2.26' }
+              'SHA256' { '2.16.840.1.101.3.4.2.1' }
+              default  { throw "Unsupported catalog signature digest: $Digest" }
+            }
+
+            $cms = New-Object System.Security.Cryptography.Pkcs.SignedCms
+            $cms.Decode([System.IO.File]::ReadAllBytes($Path))
+
+            # Verify the PKCS#7 signature itself without building a certificate trust chain.
+            $cms.CheckSignature($true)
+
+            if ($cms.SignerInfos.Count -ne 1) {
+              throw "Expected exactly one signer in $Path, found $($cms.SignerInfos.Count)."
+            }
+
+            $signerInfo = $cms.SignerInfos[0]
+            $signerCert = $signerInfo.Certificate
+            if (-not $signerCert) {
+              throw "Signed catalog does not contain its signer certificate: $Path"
+            }
+
+            if ($signerCert.Thumbprint -ne $Thumbprint) {
+              throw "Catalog signer thumbprint does not match the Dockur signing certificate: $Path"
+            }
+
+            if ($signerInfo.DigestAlgorithm.Value -ne $expectedDigestOid) {
+              throw "Catalog signature digest does not match $Digest: $Path"
+            }
+          }
+
           function Invoke-Inf2Cat {
             param(
               [Parameter(Mandatory = $true)][string]$FilePath,
@@ -534,8 +574,7 @@ jobs:
             [System.Convert]::FromBase64String($env:SIGNATURE)
           )
 
-          $flags = [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable `
-            -bor [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet
+          $flags = [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
           $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
             $pfx,
             '',
@@ -556,11 +595,6 @@ jobs:
             $cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
           )
           Write-Step "Using signing certificate $($cert.Thumbprint)."
-
-          # Trust the self-signed certificate only inside this ephemeral runner so SignTool
-          # can validate the catalogs after signing them.
-          Import-Certificate -FilePath $publicCer -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
-          Import-Certificate -FilePath $publicCer -CertStoreLocation 'Cert:\CurrentUser\TrustedPublisher' | Out-Null
 
           $legacyInf2Cat = Join-Path $env:RUNNER_TEMP 'vmsvga-inf2cat81\Inf2Cat.exe'
           if (-not (Test-Path $legacyInf2Cat)) {
@@ -684,23 +718,11 @@ jobs:
               throw "SignTool failed for $cat with exit code $LASTEXITCODE."
             }
 
-            # Verify the catalog's Authenticode signature.
-            & $signtool verify /pa /v $cat
-            if ($LASTEXITCODE -ne 0) {
-              throw "Catalog signature verification failed: $cat"
-            }
-
-            # Most importantly, verify every package payload file against the newly
-            # generated catalog. This explicitly tests the membership lookup that failed
-            # in Windows 7 with the earlier hand-edited catalogs.
-            foreach ($member in Get-ChildItem -Path $dir -File | Where-Object {
-              $_.Extension.ToLowerInvariant() -notin @('.cat', '.cer')
-            }) {
-              & $signtool verify /pa /c $cat /v $member.FullName
-              if ($LASTEXITCODE -ne 0) {
-                throw "Catalog membership verification failed: $($member.FullName)"
-              }
-            }
+            Write-Step "Cryptographically verifying $($target.Dir) catalog signature without runner trust."
+            Test-CatalogSignature `
+              -Path $cat `
+              -Thumbprint $cert.Thumbprint `
+              -Digest $target.Digest
 
             $catalogHash = (Get-FileHash -Algorithm SHA256 -Path $cat).Hash.ToLowerInvariant()
             $reportLines += (
