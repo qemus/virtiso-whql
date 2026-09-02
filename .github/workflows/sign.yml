@@ -151,7 +151,7 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: '${{ runner.temp }}\vmsvga-inf2cat26100'
-          key: inf2cat-wdk26100-10.0.26100.6584-windows-2022-v2
+          key: inf2cat-wdk26100-nuget-10.0.26100.6584-windows-2022-v1
 
       -
         name: Prepare Inf2Cat 26100 cache
@@ -176,55 +176,57 @@ jobs:
             return $true
           }
 
-          function Get-MsiFileNames {
+          function Expand-NuGetPackage {
             param(
-              [Parameter(Mandatory = $true)][object]$Installer,
-              [Parameter(Mandatory = $true)][string]$Path
+              [Parameter(Mandatory = $true)][string]$Name,
+              [Parameter(Mandatory = $true)][string]$Version,
+              [Parameter(Mandatory = $true)][string]$Root
             )
 
-            $database = $null
-            $view = $null
-            $record = $null
-            $names = @()
+            $lowerName = $Name.ToLowerInvariant()
+            $archive = Join-Path $Root ($lowerName + '.nupkg')
+            $destination = Join-Path $Root $lowerName
+            $url = "https://api.nuget.org/v3-flatcontainer/$lowerName/$Version/$lowerName.$Version.nupkg"
 
-            try {
-              $database = $Installer.OpenDatabase($Path, 0)
-              $view = $database.OpenView('SELECT `FileName` FROM `File`')
-              $view.Execute()
+            Write-Host "Downloading $Name $Version directly from NuGet."
+            Invoke-WebRequest -Uri $url -OutFile $archive -UseBasicParsing
 
-              while ($true) {
-                $record = $view.Fetch()
-                if (-not $record) {
-                  break
-                }
-
-                $fileName = $record.StringData(1)
-                if (-not [string]::IsNullOrWhiteSpace($fileName)) {
-                  foreach ($name in ($fileName -split '\|')) {
-                    if (-not [string]::IsNullOrWhiteSpace($name)) {
-                      $names += $name
-                    }
-                  }
-                }
-
-                [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($record)
-                $record = $null
-              }
-
-              return $names
+            if (Test-Path $destination) {
+              Remove-Item $destination -Recurse -Force
             }
-            finally {
-              if ($record) {
-                [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($record)
-              }
-              if ($view) {
-                try { $view.Close() } catch {}
-                [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($view)
-              }
-              if ($database) {
-                [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($database)
-              }
+            New-Item -ItemType Directory -Path $destination | Out-Null
+
+            & 7z.exe x $archive "-o$destination" -y | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to extract NuGet package $Name."
             }
+
+            return $destination
+          }
+
+          function Find-Inf2Cat {
+            param([Parameter(Mandatory = $true)][string]$Root)
+
+            $preferred = Get-ChildItem `
+              -Path $Root `
+              -Filter Inf2Cat.exe `
+              -File `
+              -Recurse `
+              -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -match '\\x86\\Inf2Cat\.exe$' } |
+              Select-Object -First 1
+
+            if ($preferred) {
+              return $preferred
+            }
+
+            return Get-ChildItem `
+              -Path $Root `
+              -Filter Inf2Cat.exe `
+              -File `
+              -Recurse `
+              -ErrorAction SilentlyContinue |
+              Select-Object -First 1
           }
 
           $cache = Join-Path $env:RUNNER_TEMP 'vmsvga-inf2cat26100'
@@ -238,129 +240,103 @@ jobs:
           }
           New-Item -ItemType Directory -Path $cache | Out-Null
 
-          $wdkRoot = Join-Path $env:RUNNER_TEMP 'wdk26100'
-          $wdkLayout = Join-Path $wdkRoot 'layout'
-          $wdkExtract = Join-Path $wdkRoot 'extract'
-          $wdkSetup = Join-Path $wdkRoot 'wdksetup.exe'
-          $wdkSetupUrl = 'https://download.microsoft.com/download/41fb59c2-1723-45f9-a270-96b73ad58233/KIT_BUNDLE_WDK_MEDIACREATION/wdksetup.exe'
-
-          if (Test-Path $wdkRoot) {
-            Remove-Item $wdkRoot -Recurse -Force
+          # WDK 26100 is available as an official NuGet package. Download and unpack the
+          # package directly: never run any setup/bootstrapper or Windows Installer executable.
+          $version = '10.0.26100.6584'
+          $nugetRoot = Join-Path $env:RUNNER_TEMP 'wdk26100-nuget'
+          if (Test-Path $nugetRoot) {
+            Remove-Item $nugetRoot -Recurse -Force
           }
-          New-Item -ItemType Directory -Path $wdkRoot, $wdkLayout, $wdkExtract | Out-Null
+          New-Item -ItemType Directory -Path $nugetRoot | Out-Null
 
-          Write-Host 'Downloading the Windows Driver Kit 26100 bootstrapper.'
-          Invoke-WebRequest -Uri $wdkSetupUrl -OutFile $wdkSetup -UseBasicParsing
+          $wdkX86 = Expand-NuGetPackage `
+            -Name 'Microsoft.Windows.WDK.x86' `
+            -Version $version `
+            -Root $nugetRoot
 
-          Write-Host 'Preparing the Windows Driver Kit 26100 layout without installing it.'
-          $layout = Start-Process `
-            -FilePath $wdkSetup `
-            -ArgumentList @('/layout', "`"$wdkLayout`"", '/quiet', '/norestart') `
-            -Wait `
-            -PassThru
+          $extractedInf2Cat = Find-Inf2Cat -Root $wdkX86
 
-          if ($layout.ExitCode -ne 0) {
-            throw "Windows Driver Kit 26100 layout failed with exit code $($layout.ExitCode)."
+          # The x86 WDK package is the expected home of the x86 host tool. Keep a
+          # defensive x64 fallback without installing anything if Microsoft moves it.
+          if (-not $extractedInf2Cat) {
+            Write-Host 'Inf2Cat was not present in Microsoft.Windows.WDK.x86; checking the x64 NuGet package.'
+            $wdkX64 = Expand-NuGetPackage `
+              -Name 'Microsoft.Windows.WDK.x64' `
+              -Version $version `
+              -Root $nugetRoot
+            $extractedInf2Cat = Find-Inf2Cat -Root $wdkX64
           }
-
-          # Do not guess which modern WDK MSI contains Inf2Cat. Microsoft has moved
-          # tools between packages across WDK releases. Inspect the MSI File tables in
-          # the downloaded layout and let the layout itself tell us which package owns
-          # Inf2Cat.exe and WindowsProtectedFiles.xml.
-          $msis = @(Get-ChildItem -Path $wdkLayout -Filter '*.msi' -File -Recurse)
-          if ($msis.Count -eq 0) {
-            throw 'Windows Driver Kit 26100 layout contains no MSI packages.'
-          }
-
-          Write-Host "Inspecting $($msis.Count) WDK MSI File tables for Inf2Cat payloads."
-          $installer = New-Object -ComObject WindowsInstaller.Installer
-          $owners = @{}
-
-          try {
-            foreach ($msi in $msis) {
-              try {
-                $fileNames = @(Get-MsiFileNames -Installer $installer -Path $msi.FullName)
-              }
-              catch {
-                Write-Warning "Could not inspect MSI $($msi.Name): $($_.Exception.Message)"
-                continue
-              }
-
-              foreach ($required in @('Inf2Cat.exe', 'WindowsProtectedFiles.xml')) {
-                if ($fileNames -contains $required) {
-                  Write-Host "Found $required in $($msi.FullName)"
-                  $owners[$required] = $msi.FullName
-                }
-              }
-            }
-          }
-          finally {
-            [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($installer)
-          }
-
-          foreach ($required in @('Inf2Cat.exe', 'WindowsProtectedFiles.xml')) {
-            if (-not $owners.ContainsKey($required)) {
-              Write-Host 'MSI packages present in the WDK layout:'
-              $msis | ForEach-Object { Write-Host "  $($_.FullName)" }
-              throw "Could not find $required in any WDK 26100 MSI File table."
-            }
-          }
-
-          $ownerMsis = @($owners.Values | Sort-Object -Unique)
-          foreach ($ownerMsi in $ownerMsis) {
-            $extractDir = Join-Path `
-              $wdkExtract `
-              ([System.IO.Path]::GetFileNameWithoutExtension($ownerMsi))
-
-            New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
-            Write-Host "Administrative-extracting payload owner: $ownerMsi"
-
-            $adminInstall = Start-Process `
-              -FilePath msiexec.exe `
-              -ArgumentList @('/a', "`"$ownerMsi`"", '/qn', "TARGETDIR=`"$extractDir`"") `
-              -Wait `
-              -PassThru
-
-            if ($adminInstall.ExitCode -ne 0) {
-              throw "WDK 26100 MSI extraction failed with exit code $($adminInstall.ExitCode): $ownerMsi"
-            }
-          }
-
-          $extractedInf2Cat = Get-ChildItem `
-            -Path $wdkExtract `
-            -Filter Inf2Cat.exe `
-            -File `
-            -Recurse |
-            Select-Object -First 1
 
           if (-not $extractedInf2Cat) {
-            throw 'The owning MSI was identified, but administrative extraction did not materialize Inf2Cat.exe.'
+            throw 'Inf2Cat.exe was not found in the official WDK 26100 NuGet packages.'
           }
 
           $toolDir = Split-Path -Parent $extractedInf2Cat.FullName
-          Write-Host "Found extracted Inf2Cat 26100 toolset at: $toolDir"
+          Write-Host "Found NuGet Inf2Cat toolset at: $toolDir"
           Copy-Item (Join-Path $toolDir '*') $cache -Recurse -Force
 
-          if (-not (Test-Path (Join-Path $cache 'WindowsProtectedFiles.xml'))) {
+          $protectedFiles = Get-ChildItem `
+            -Path $nugetRoot `
+            -Filter WindowsProtectedFiles.xml `
+            -File `
+            -Recurse `
+            -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+
+          if (-not $protectedFiles) {
+            # WindowsProtectedFiles.xml can be supplied by the matching SDK build-tools
+            # package. This is another plain NuGet archive, not an SDK installation.
+            $sdkTools = Expand-NuGetPackage `
+              -Name 'Microsoft.Windows.SDK.BuildTools' `
+              -Version $version `
+              -Root $nugetRoot
+
             $protectedFiles = Get-ChildItem `
-              -Path $wdkExtract `
+              -Path $sdkTools `
               -Filter WindowsProtectedFiles.xml `
               -File `
-              -Recurse |
+              -Recurse `
+              -ErrorAction SilentlyContinue |
               Select-Object -First 1
+          }
 
-            if ($protectedFiles) {
-              Copy-Item $protectedFiles.FullName $cache -Force
-            }
+          if ($protectedFiles -and -not (Test-Path (Join-Path $cache 'WindowsProtectedFiles.xml'))) {
+            Copy-Item $protectedFiles.FullName $cache -Force
           }
 
           if (-not (Test-Inf2CatToolset -Directory $cache)) {
-            Write-Host 'Extracted Inf2Cat cache contents:'
+            Write-Host 'Prepared Inf2Cat cache contents:'
             Get-ChildItem -Path $cache -File | ForEach-Object { Write-Host "  $($_.Name)" }
-            throw 'Extracted Windows Driver Kit 26100 Inf2Cat toolset is incomplete.'
+            throw 'The NuGet-extracted Windows Driver Kit 26100 Inf2Cat toolset is incomplete.'
           }
 
-          Write-Host "Inf2Cat 26100 toolset prepared: $cache"
+          # Smoke-test the portable toolset before caching it. A portable Inf2Cat must
+          # return promptly; it must never launch Windows Installer or WDK setup.
+          $inf2cat = Join-Path $cache 'Inf2Cat.exe'
+          $stdout = Join-Path $env:RUNNER_TEMP 'inf2cat26100-smoke.out'
+          $stderr = Join-Path $env:RUNNER_TEMP 'inf2cat26100-smoke.err'
+          $process = Start-Process `
+            -FilePath $inf2cat `
+            -ArgumentList '/?' `
+            -NoNewWindow `
+            -PassThru `
+            -RedirectStandardOutput $stdout `
+            -RedirectStandardError $stderr
+
+          if (-not $process.WaitForExit(30000)) {
+            & taskkill.exe /PID $process.Id /T /F | Out-Null
+            throw 'NuGet-extracted Inf2Cat did not return from /? within 30 seconds.'
+          }
+
+          if (Test-Path $stdout) {
+            Get-Content $stdout | Select-Object -First 20 | ForEach-Object { Write-Host $_ }
+          }
+          if (Test-Path $stderr) {
+            Get-Content $stderr | Select-Object -First 20 | ForEach-Object { Write-Host $_ }
+          }
+
+          Remove-Item $stdout, $stderr -Force -ErrorAction SilentlyContinue
+          Write-Host "Inf2Cat 26100 NuGet toolset prepared and smoke-tested: $cache"
 
       -
         name: Save Inf2Cat 26100 cache
@@ -368,7 +344,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: '${{ runner.temp }}\vmsvga-inf2cat26100'
-          key: inf2cat-wdk26100-10.0.26100.6584-windows-2022-v2
+          key: inf2cat-wdk26100-nuget-10.0.26100.6584-windows-2022-v1
 
       -
         name: Regenerate and sign catalogs
