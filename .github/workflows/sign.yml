@@ -19,6 +19,7 @@ jobs:
   sign:
     name: Regenerate and sign catalogs
     runs-on: windows-2022
+    timeout-minutes: 30
 
     steps:
       -
@@ -147,6 +148,7 @@ jobs:
       -
         name: Regenerate and sign catalogs
         shell: powershell
+        timeout-minutes: 20
         env:
           SIGNATURE: ${{ secrets.SIGNATURE }}
         run: |
@@ -205,6 +207,91 @@ jobs:
             if ($differences.Count -gt 0) {
               $differences | ForEach-Object { Write-Host $_ }
               throw 'Files other than vmsvga CAT/CER files changed.'
+            }
+          }
+
+          function Get-LatestWindowsKitTool {
+            param(
+              [Parameter(Mandatory = $true)][string]$Architecture,
+              [Parameter(Mandatory = $true)][string]$Name
+            )
+
+            $binRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
+            if (-not (Test-Path $binRoot)) {
+              throw "Windows Kits bin directory is missing: $binRoot"
+            }
+
+            $candidates = @()
+            foreach ($directory in Get-ChildItem -Path $binRoot -Directory) {
+              $version = $null
+              if (-not [version]::TryParse($directory.Name, [ref]$version)) {
+                continue
+              }
+
+              $candidate = Join-Path $directory.FullName "$Architecture\$Name"
+              if (Test-Path $candidate) {
+                $candidates += [pscustomobject]@{
+                  Version = $version
+                  Path = $candidate
+                }
+              }
+            }
+
+            $selected = $candidates |
+              Sort-Object Version -Descending |
+              Select-Object -First 1
+
+            if (-not $selected) {
+              throw "Could not locate $Name for $Architecture in $binRoot."
+            }
+
+            return $selected.Path
+          }
+
+          function Invoke-Inf2Cat {
+            param(
+              [Parameter(Mandatory = $true)][string]$FilePath,
+              [Parameter(Mandatory = $true)][string]$DriverDirectory,
+              [Parameter(Mandatory = $true)][string]$OperatingSystems,
+              [int]$TimeoutSeconds = 180
+            )
+
+            $stdout = Join-Path $env:RUNNER_TEMP ("inf2cat-{0}.out" -f [guid]::NewGuid())
+            $stderr = Join-Path $env:RUNNER_TEMP ("inf2cat-{0}.err" -f [guid]::NewGuid())
+
+            try {
+              $process = Start-Process `
+                -FilePath $FilePath `
+                -ArgumentList @(
+                  "/driver:$DriverDirectory",
+                  "/os:$OperatingSystems",
+                  '/uselocaltime',
+                  '/verbose'
+                ) `
+                -NoNewWindow `
+                -PassThru `
+                -RedirectStandardOutput $stdout `
+                -RedirectStandardError $stderr
+
+              if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+                Write-Host "Inf2Cat exceeded ${TimeoutSeconds}s; terminating PID $($process.Id)."
+                & taskkill.exe /PID $process.Id /T /F | Out-Host
+                throw "Inf2Cat timed out for $DriverDirectory /os:$OperatingSystems."
+              }
+
+              if (Test-Path $stdout) {
+                Get-Content -Path $stdout | ForEach-Object { Write-Host $_ }
+              }
+              if (Test-Path $stderr) {
+                Get-Content -Path $stderr | ForEach-Object { Write-Host $_ }
+              }
+
+              if ($process.ExitCode -ne 0) {
+                throw "Inf2Cat failed for $DriverDirectory with exit code $($process.ExitCode)."
+              }
+            }
+            finally {
+              Remove-Item -Path $stdout, $stderr -Force -ErrorAction SilentlyContinue
             }
           }
 
@@ -271,7 +358,7 @@ jobs:
             $publicCer,
             $cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
           )
-          Write-Step "Using signing certificate $($cert.Thumbprint))."
+          Write-Step "Using signing certificate $($cert.Thumbprint)."
 
           # Trust the self-signed certificate only inside this ephemeral runner so SignTool
           # can validate the catalogs after signing them.
@@ -283,40 +370,19 @@ jobs:
             throw "Missing cached WDK 8.1 Inf2Cat: $legacyInf2Cat"
           }
 
-          # windows-2022 currently carries the WDK 10.0.26100 toolset. Discover the
-          # newest x86 Inf2Cat and x64 SignTool instead of hard-coding the patch level.
-          $modernInf2Cat = Get-ChildItem `
-            -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
-            -Filter Inf2Cat.exe `
-            -File `
-            -Recurse |
-            Where-Object { $_.FullName -match '\\x86\\Inf2Cat\.exe$' } |
-            Sort-Object FullName -Descending |
-            Select-Object -First 1
-
-          if (-not $modernInf2Cat) {
-            throw 'The GitHub Windows runner does not contain a modern WDK Inf2Cat.exe.'
-          }
-
-          $signtool = Get-ChildItem `
-            -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
-            -Filter signtool.exe `
-            -File `
-            -Recurse |
-            Where-Object { $_.FullName -match '\\x64\\signtool\.exe$' } |
-            Sort-Object FullName -Descending |
-            Select-Object -First 1
-
-          if (-not $signtool) {
-            throw 'The GitHub Windows runner does not contain signtool.exe.'
-          }
+          # Do not install or recursively scan an SDK/WDK here. The hosted Windows runner
+          # already contains a current Windows Kits toolset. Only inspect its immediate
+          # version directories and select the newest existing binary.
+          $modernInf2Cat = Get-LatestWindowsKitTool -Architecture 'x86' -Name 'Inf2Cat.exe'
+          $signtool = Get-LatestWindowsKitTool -Architecture 'x64' -Name 'signtool.exe'
 
           Write-Step "Legacy Inf2Cat: $legacyInf2Cat"
-          Write-Step "Modern Inf2Cat: $($modernInf2Cat.FullName)"
-          Write-Step "SignTool: $($signtool.FullName)"
+          Write-Step "Modern Inf2Cat: $modernInf2Cat"
+          Write-Step "SignTool: $signtool"
 
-          # WDK 8.1 is used for the pre-Windows-10 targets because it retains the old
-          # 2000/XP/2003 OS identifiers. The runner's current WDK handles NT 10.0 targets.
+          # WDK 8.1 is used for targets through Windows 8.1/Server 2012 R2 because it
+          # retains the old 2000/XP/2003 identifiers. Windows 10/11 and Server 2016+
+          # require a modern Inf2Cat because those /os identifiers do not exist in WDK 8.1.
           # SHA-1/SHA-256 signing follows the digest family used by the original VMware CATs.
           $targets = @(
             @{ Dir = '2k\x86';       Tool = 'legacy'; Os = '2000';                Digest = 'SHA1'   },
@@ -347,8 +413,8 @@ jobs:
             "Certificate: $($cert.Subject)",
             "Certificate thumbprint: $($cert.Thumbprint)",
             "Legacy Inf2Cat: $legacyInf2Cat",
-            "Modern Inf2Cat: $($modernInf2Cat.FullName)",
-            "SignTool: $($signtool.FullName)",
+            "Modern Inf2Cat: $modernInf2Cat",
+            "SignTool: $signtool",
             ''
           )
 
@@ -386,19 +452,17 @@ jobs:
               $legacyInf2Cat
             }
             else {
-              $modernInf2Cat.FullName
+              $modernInf2Cat
             }
 
-            Write-Step "Inf2Cat $($target.Dir) /os:$($target.Os)"
-            & $inf2cat `
-              "/driver:$dir" `
-              "/os:$($target.Os)" `
-              '/uselocaltime' `
-              '/verbose'
+            Write-Step "BEGIN $($target.Dir): Inf2Cat /os:$($target.Os)"
+            Invoke-Inf2Cat `
+              -FilePath $inf2cat `
+              -DriverDirectory $dir `
+              -OperatingSystems $target.Os `
+              -TimeoutSeconds 180
+            Write-Step "END $($target.Dir): Inf2Cat completed."
 
-            if ($LASTEXITCODE -ne 0) {
-              throw "Inf2Cat failed for $($target.Dir) with exit code $LASTEXITCODE."
-            }
             if (-not (Test-Path $cat)) {
               throw "Inf2Cat did not create expected catalog: $cat"
             }
@@ -406,7 +470,7 @@ jobs:
             Copy-Item -Path $publicCer -Destination $cer -Force
 
             Write-Step "Signing $($target.Dir)\$catalogName with $($target.Digest)."
-            & $signtool.FullName `
+            & $signtool `
               sign `
               /fd $target.Digest `
               /f $pfx `
@@ -418,7 +482,7 @@ jobs:
             }
 
             # Verify the catalog's Authenticode signature.
-            & $signtool.FullName verify /pa /v $cat
+            & $signtool verify /pa /v $cat
             if ($LASTEXITCODE -ne 0) {
               throw "Catalog signature verification failed: $cat"
             }
@@ -429,7 +493,7 @@ jobs:
             foreach ($member in Get-ChildItem -Path $dir -File | Where-Object {
               $_.Extension.ToLowerInvariant() -notin @('.cat', '.cer')
             }) {
-              & $signtool.FullName verify /pa /c $cat /v $member.FullName
+              & $signtool verify /pa /c $cat /v $member.FullName
               if ($LASTEXITCODE -ne 0) {
                 throw "Catalog membership verification failed: $($member.FullName)"
               }
