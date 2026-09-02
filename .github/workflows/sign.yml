@@ -593,7 +593,7 @@ jobs:
           # WDK 8.1 is used for targets through Windows 8.1/Server 2012 R2 because it
           # retains the old 2000/XP/2003 identifiers. Windows 10/11 and Server 2016+
           # require a modern Inf2Cat because those /os identifiers do not exist in WDK 8.1.
-          # SHA-1/SHA-256 signing follows the digest family used by the original VMware CATs.
+          # Legacy targets use SHA-1 for compatibility; Windows 10/11 and Server 2016+ use SHA-256.
           $targets = @(
             @{ Dir = '2k\x86';       Tool = 'legacy'; Os = '2000';                Digest = 'SHA1'   },
             @{ Dir = 'xp\x86';       Tool = 'legacy'; Os = 'XP_X86';              Digest = 'SHA1'   },
@@ -602,13 +602,13 @@ jobs:
             @{ Dir = '2k3\amd64';    Tool = 'legacy'; Os = 'Server2003_X64';      Digest = 'SHA1'   },
             @{ Dir = '2k8\x86';      Tool = 'legacy'; Os = 'Server2008_X86';      Digest = 'SHA1'   },
             @{ Dir = '2k8\amd64';    Tool = 'legacy'; Os = 'Server2008_X64';      Digest = 'SHA1'   },
-            @{ Dir = 'w7\x86';       Tool = 'legacy'; Os = '7_X86';               Digest = 'SHA256' },
-            @{ Dir = 'w7\amd64';     Tool = 'legacy'; Os = '7_X64';               Digest = 'SHA256' },
-            @{ Dir = '2k8R2\amd64';  Tool = 'legacy'; Os = 'Server2008R2_X64';    Digest = 'SHA256' },
-            @{ Dir = 'w8\amd64';     Tool = 'legacy'; Os = '8_X64';               Digest = 'SHA256' },
-            @{ Dir = '2k12\amd64';   Tool = 'legacy'; Os = 'Server8_X64';         Digest = 'SHA256' },
-            @{ Dir = 'w8.1\amd64';   Tool = 'legacy'; Os = '6_3_X64';             Digest = 'SHA256' },
-            @{ Dir = '2k12R2\amd64'; Tool = 'legacy'; Os = 'SERVER6_3_X64';       Digest = 'SHA256' },
+            @{ Dir = 'w7\x86';       Tool = 'legacy'; Os = '7_X86';               Digest = 'SHA1'   },
+            @{ Dir = 'w7\amd64';     Tool = 'legacy'; Os = '7_X64';               Digest = 'SHA1'   },
+            @{ Dir = '2k8R2\amd64';  Tool = 'legacy'; Os = 'Server2008R2_X64';    Digest = 'SHA1'   },
+            @{ Dir = 'w8\amd64';     Tool = 'legacy'; Os = '8_X64';               Digest = 'SHA1'   },
+            @{ Dir = '2k12\amd64';   Tool = 'legacy'; Os = 'Server8_X64';         Digest = 'SHA1'   },
+            @{ Dir = 'w8.1\amd64';   Tool = 'legacy'; Os = '6_3_X64';             Digest = 'SHA1'   },
+            @{ Dir = '2k12R2\amd64'; Tool = 'legacy'; Os = 'SERVER6_3_X64';       Digest = 'SHA1'   },
             @{ Dir = 'w10\amd64';    Tool = 'modern'; Os = '10_X64';              Digest = 'SHA256' },
             @{ Dir = '2k16\amd64';   Tool = 'modern'; Os = 'SERVER2016_X64';      Digest = 'SHA256' },
             @{ Dir = '2k19\amd64';   Tool = 'modern'; Os = 'ServerRS5_X64';       Digest = 'SHA256' },
