@@ -1,4 +1,4 @@
-name: Build signed legacy drivers
+name: Sign drivers
 
 on:
   workflow_dispatch:
