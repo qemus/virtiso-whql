@@ -105,7 +105,7 @@ jobs:
                   fi
 
                   offset=$((offset + limit))
-                  sleep 0.2
+                  sleep 1.1
                 done
 
                 [ "$found" = "Y" ] && break
