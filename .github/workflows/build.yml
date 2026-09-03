@@ -595,11 +595,6 @@ jobs:
           #!/usr/bin/env bash
           set -Eeuo pipefail
 
-          # Reuse the Windows 8.1 viogpudo package for Windows 8.
-          sudo cp -al \
-            /tmp/iso/viogpudo/w8.1 \
-            /tmp/iso/viogpudo/w8
-
           # Add missing WDF installer DLLs using hard links.
           while IFS= read -r -d '' inf; do
 
@@ -670,7 +665,7 @@ jobs:
           smbus:2k8
           sriov:w8.1 2k12R2 2k16 2k19 w10 w11 2k22 2k25
           viofs:w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
-          viogpudo:w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
+          viogpudo:2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
           vioinput:2k8R2 w7 w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
           viomem:2k16 2k19 w10 w11 2k22 2k25
           viorng:2k8 2k8R2 w7 w8 w8.1 2k12 2k12R2 2k16 2k19 w10 w11 2k22 2k25
